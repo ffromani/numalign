@@ -210,5 +210,6 @@ func Execute() {
 		fmt.Printf("NUMA NODE=%v\n", nodeNum)
 	} else {
 		fmt.Printf("%s", R.String())
+		os.Exit(99)
 	}
 }
