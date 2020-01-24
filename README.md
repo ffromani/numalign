@@ -12,11 +12,13 @@ make
 ```
 
 ## Container image
-coming soon
+```bash
+podman run -e NUMALIGN_DEBUG=1 quay.io/fromani/numalign:devel
+```
 
 ## Example output
 From a developer laptop:
-```
+```bash
 $ ./numalign 
 $
 $ # no output, let's see why
