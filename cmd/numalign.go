@@ -85,18 +85,18 @@ func GetAllowedCPUList(statusFile string) ([]int, error) {
 	return cpuIDs, fmt.Errorf("malformed status file: %s", statusFile)
 }
 
-func GetNUMAPerCPUs(sysNodeDir string) (map[int]int, error) {
-	cpusPerNUMA, err := findCPUSPerNUMANode(sysNodeDir)
+func GetCPUToNUMANodeMap(sysNodeDir string) (map[int]int, error) {
+	cpusPerNUMA, err := GetCPUsPerNUMANode(sysNodeDir)
 	if err != nil {
 		return nil, err
 	}
-	NUMAPerCPUs := findNUMANodePerCPUs(cpusPerNUMA)
-	return NUMAPerCPUs, nil
+	CPUToNUMANode := GetCPUNUMANodes(cpusPerNUMA)
+	return CPUToNUMANode, nil
 }
 
-func GetPCIDevicesFromEnv() []string {
+func GetPCIDevicesFromEnv(environ []string) []string {
 	var pciDevs []string
-	for _, envVar := range os.Environ() {
+	for _, envVar := range environ {
 		if !strings.HasPrefix(envVar, "PCIDEVICE_") {
 			continue
 		}
@@ -106,23 +106,20 @@ func GetPCIDevicesFromEnv() []string {
 	return pciDevs
 }
 
-func GetNUMAPerPCIDevice(sysBusPCIDir string, pciDevs []string) (map[string]int, error) {
-	if pciDevs == nil || len(pciDevs) == 0 {
-		pciDevs = GetPCIDevicesFromEnv()
-	}
+func GetPCIDeviceToNumaNodeMap(sysBusPCIDir string, pciDevs []string) (map[string]int, error) {
 	if len(pciDevs) == 0 {
 		return nil, fmt.Errorf("No PCI devices detected")
 	}
 	log.Printf("PCI: devices: %s", strings.Join(pciDevs, " - "))
 
-	NUMAPerDev, err := findNUMANodePerPCIDevice(sysBusPCIDir, pciDevs)
+	NUMAPerDev, err := GetPCIDeviceNUMANode(sysBusPCIDir, pciDevs)
 	if err != nil {
 		return nil, err
 	}
 	return NUMAPerDev, nil
 }
 
-func findCPUSPerNUMANode(sysfsdir string) (map[int][]int, error) {
+func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 	pattern := filepath.Join(sysfsdir, "node*")
 	nodes, err := filepath.Glob(pattern)
 	if err != nil {
@@ -149,17 +146,17 @@ func findCPUSPerNUMANode(sysfsdir string) (map[int][]int, error) {
 	return cpusPerNUMA, nil
 }
 
-func findNUMANodePerCPUs(cpusPerNUMA map[int][]int) map[int]int {
-	NUMAPerCPUs := make(map[int]int)
+func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
+	CPUToNUMANode := make(map[int]int)
 	for nodeNum, cpus := range cpusPerNUMA {
 		for _, cpu := range cpus {
-			NUMAPerCPUs[cpu] = nodeNum
+			CPUToNUMANode[cpu] = nodeNum
 		}
 	}
-	return NUMAPerCPUs
+	return CPUToNUMANode
 }
 
-func findNUMANodePerPCIDevice(sysPCIDir string, devs []string) (map[string]int, error) {
+func GetPCIDeviceNUMANode(sysPCIDir string, devs []string) (map[string]int, error) {
 	NUMAPerDev := make(map[string]int)
 	for _, dev := range devs {
 		content, err := ioutil.ReadFile(filepath.Join(sysPCIDir, dev, "numa_node"))
@@ -188,22 +185,23 @@ func Execute() {
 	}
 	log.Printf("CPU: allowed: %v", cpuIDs)
 
-	NUMAPerCPUs, err := GetNUMAPerCPUs("/sys/devices/system/node")
+	CPUToNUMANode, err := GetCPUToNUMANodeMap("/sys/devices/system/node")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	log.Printf("CPU: NUMA node by id: %v", NUMAPerCPUs)
+	log.Printf("CPU: NUMA node by id: %v", CPUToNUMANode)
 
 	NUMAPerDev := make(map[string]int)
 	if _, ok := os.LookupEnv("NUMALIGN_SKIP_CHECK_PCIDEVS"); !ok {
-		NUMAPerDev, err = GetNUMAPerPCIDevice("/sys/bus/pci/devices/", nil)
+		pciDevs := GetPCIDevicesFromEnv(os.Environ())
+		NUMAPerDev, err = GetPCIDeviceToNumaNodeMap("/sys/bus/pci/devices/", pciDevs)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
 	}
 
 	R := Resources{
-		CPUToNUMANode:     NUMAPerCPUs,
+		CPUToNUMANode:     CPUToNUMANode,
 		PCIDevsToNUMANode: NUMAPerDev,
 	}
 	nodeNum, aligned := R.CheckAlignment()
