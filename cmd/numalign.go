@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	cpuset "github.com/fromanirh/numalign/internal/pkg/contrib/k8s/cpuset"
 )
 
 func splitCPUList(cpuList string) ([]int, error) {

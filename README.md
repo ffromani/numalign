@@ -3,7 +3,8 @@
 `numalign` tells you if a set of resources is aligned on the same NUMA node. That's it.
 
 ## license
-numalign (C) 2020 Red Hat Inc and licensed under the Apache License v2
+`internal/pkg/contrib/k8s/cpuset/*` - (C) 2017 The Kubernetes Authors.
+everything else - (C) 2020 Red Hat Inc and licensed under the Apache License v2
 
 ## build
 just run
