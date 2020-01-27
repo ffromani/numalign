@@ -13,6 +13,12 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
+const (
+	ProcStatusFile          = "/proc/self/status"
+	SysDevicesSystemNodeDir = "/sys/devices/system/node"
+	SysBusPCIDevicesDir     = "/sys/bus/pci/devices/"
+)
+
 func splitCPUList(cpuList string) ([]int, error) {
 	cpus, err := cpuset.Parse(cpuList)
 	if err != nil {
@@ -119,6 +125,22 @@ func GetPCIDeviceToNumaNodeMap(sysBusPCIDir string, pciDevs []string) (map[strin
 	return NUMAPerDev, nil
 }
 
+func GetPCIDeviceNUMANode(sysPCIDir string, devs []string) (map[string]int, error) {
+	NUMAPerDev := make(map[string]int)
+	for _, dev := range devs {
+		content, err := ioutil.ReadFile(filepath.Join(sysPCIDir, dev, "numa_node"))
+		if err != nil {
+			return nil, err
+		}
+		nodeNum, err := strconv.Atoi(strings.TrimSpace(string(content)))
+		if err != nil {
+			return nil, err
+		}
+		NUMAPerDev[dev] = nodeNum
+	}
+	return NUMAPerDev, nil
+}
+
 func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 	pattern := filepath.Join(sysfsdir, "node*")
 	nodes, err := filepath.Glob(pattern)
@@ -156,22 +178,6 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	return CPUToNUMANode
 }
 
-func GetPCIDeviceNUMANode(sysPCIDir string, devs []string) (map[string]int, error) {
-	NUMAPerDev := make(map[string]int)
-	for _, dev := range devs {
-		content, err := ioutil.ReadFile(filepath.Join(sysPCIDir, dev, "numa_node"))
-		if err != nil {
-			return nil, err
-		}
-		nodeNum, err := strconv.Atoi(strings.TrimSpace(string(content)))
-		if err != nil {
-			return nil, err
-		}
-		NUMAPerDev[dev] = nodeNum
-	}
-	return NUMAPerDev, nil
-}
-
 func Execute() {
 	var err error
 
@@ -191,13 +197,10 @@ func Execute() {
 	}
 	log.Printf("CPU: NUMA node by id: %v", CPUToNUMANode)
 
-	NUMAPerDev := make(map[string]int)
-	if _, ok := os.LookupEnv("NUMALIGN_SKIP_CHECK_PCIDEVS"); !ok {
-		pciDevs := GetPCIDevicesFromEnv(os.Environ())
-		NUMAPerDev, err = GetPCIDeviceToNumaNodeMap("/sys/bus/pci/devices/", pciDevs)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
+	pciDevs := GetPCIDevicesFromEnv(os.Environ())
+	NUMAPerDev, err := GetPCIDeviceToNumaNodeMap("/sys/bus/pci/devices/", pciDevs)
+	if err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	R := Resources{

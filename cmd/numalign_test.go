@@ -1,20 +1,20 @@
-package cmd_test
+package cmd
 
 import (
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
-
-	"github.com/fromanirh/numalign/cmd"
 )
 
 func TestResourceString(t *testing.T) {
-	var r1 cmd.Resources
+	var r1 Resources
 	s1 := r1.String()
 	if s1 != "" {
 		t.Errorf("empty Resource has unexpected output: %s", s1)
 	}
 
-	r2 := cmd.Resources{
+	r2 := Resources{
 		CPUToNUMANode: map[int]int{
 			0: 0,
 			1: 0,
@@ -35,13 +35,13 @@ PCI 3c:00.0=00
 }
 
 func TestResourceAlignment(t *testing.T) {
-	r0 := cmd.Resources{}
+	r0 := Resources{}
 	if nodeNum, aligned := r0.CheckAlignment(); nodeNum != -1 || !aligned {
 		t.Errorf("empty resources should be considered aligned")
 	}
 
 	// all aligned
-	r1 := cmd.Resources{
+	r1 := Resources{
 		CPUToNUMANode: map[int]int{
 			0: 0,
 			1: 0,
@@ -62,7 +62,7 @@ func TestResourceAlignment(t *testing.T) {
 	}
 
 	// cpu cores misaligned
-	r2 := cmd.Resources{
+	r2 := Resources{
 		CPUToNUMANode: map[int]int{
 			0: 0,
 			1: 0,
@@ -81,7 +81,7 @@ func TestResourceAlignment(t *testing.T) {
 	}
 
 	// PCI device misaligned
-	r3 := cmd.Resources{
+	r3 := Resources{
 		CPUToNUMANode: map[int]int{
 			0: 0,
 			1: 0,
@@ -100,7 +100,7 @@ func TestResourceAlignment(t *testing.T) {
 	}
 
 	// CPU core AND PCI device misaligned
-	r4 := cmd.Resources{
+	r4 := Resources{
 		CPUToNUMANode: map[int]int{
 			0: 0,
 			1: 0,
@@ -120,7 +120,7 @@ func TestResourceAlignment(t *testing.T) {
 }
 
 func TestGetAllowedCPUList(t *testing.T) {
-	cpus, err := cmd.GetAllowedCPUList("/error/proc/not/mounted")
+	cpus, err := GetAllowedCPUList("/error/proc/not/mounted")
 	if err == nil {
 		t.Errorf("unexpected success reading inexistent file!")
 	}
@@ -128,7 +128,7 @@ func TestGetAllowedCPUList(t *testing.T) {
 		t.Errorf("misdetected detected allowed CPU list from inexistent file")
 	}
 
-	cpus, err = cmd.GetAllowedCPUList("/proc/cpuinfo")
+	cpus, err = GetAllowedCPUList("/proc/cpuinfo")
 	if err == nil {
 		t.Errorf("malformed status file misdetected from malformed file")
 	}
@@ -136,7 +136,7 @@ func TestGetAllowedCPUList(t *testing.T) {
 		t.Errorf("misdetected detected allowed CPU list")
 	}
 
-	cpus, err = cmd.GetAllowedCPUList("/proc/self/status")
+	cpus, err = GetAllowedCPUList("/proc/self/status")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -146,13 +146,13 @@ func TestGetAllowedCPUList(t *testing.T) {
 }
 
 func TestCPUToNUMANodes(t *testing.T) {
-	r0 := cmd.GetCPUNUMANodes(map[int][]int{})
+	r0 := GetCPUNUMANodes(map[int][]int{})
 	expected0 := map[int]int{}
 	if !reflect.DeepEqual(r0, expected0) {
 		t.Errorf("maps are different: got %v expected %v", r0, expected0)
 	}
 
-	r1 := cmd.GetCPUNUMANodes(map[int][]int{
+	r1 := GetCPUNUMANodes(map[int][]int{
 		0: []int{0, 1, 2, 3},
 		1: []int{4, 5, 6, 7},
 	})
@@ -171,7 +171,7 @@ func TestCPUToNUMANodes(t *testing.T) {
 	}
 
 	// offline CPUs?
-	r2 := cmd.GetCPUNUMANodes(map[int][]int{
+	r2 := GetCPUNUMANodes(map[int][]int{
 		0: []int{0, 1, 2, 3},
 		1: []int{6, 7},
 	})
@@ -187,7 +187,7 @@ func TestCPUToNUMANodes(t *testing.T) {
 		t.Errorf("maps are different: got %v expected %v", r2, expected2)
 	}
 
-	r3 := cmd.GetCPUNUMANodes(map[int][]int{
+	r3 := GetCPUNUMANodes(map[int][]int{
 		0: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 	})
 	expected3 := map[int]int{
@@ -212,7 +212,7 @@ func TestCPUToNUMANodes(t *testing.T) {
 		t.Errorf("maps are different: got %v expected %v", r3, expected3)
 	}
 
-	r4 := cmd.GetCPUNUMANodes(map[int][]int{
+	r4 := GetCPUNUMANodes(map[int][]int{
 		0:  []int{0},
 		1:  []int{1},
 		2:  []int{2},
@@ -250,6 +250,110 @@ func TestCPUToNUMANodes(t *testing.T) {
 	}
 	if !reflect.DeepEqual(r4, expected4) {
 		t.Errorf("maps are different: got %v expected %v", r4, expected4)
+	}
+}
+
+func TestCPUToNumaNode(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	basedir, _ := filepath.Split(filename)
+
+	testDataDir := filepath.Join(basedir, "..", "test", "data")
+
+	fakeSingleSysNodeDir := filepath.Join(testDataDir, "single", SysDevicesSystemNodeDir)
+	CPUToNUMANode, err := GetCPUToNUMANodeMap(fakeSingleSysNodeDir)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expectedSingle := map[int]int{
+		0: 0,
+		1: 0,
+		2: 0,
+		3: 0,
+		4: 0,
+		5: 0,
+		6: 0,
+		7: 0,
+	}
+	if !reflect.DeepEqual(CPUToNUMANode, expectedSingle) {
+		t.Errorf("maps are different: got %v expected %v", CPUToNUMANode, expectedSingle)
+	}
+
+	fakeMultiSysNodeDir := filepath.Join(testDataDir, "multi", SysDevicesSystemNodeDir)
+	CPUToNUMANode, err = GetCPUToNUMANodeMap(fakeMultiSysNodeDir)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expectedMulti := map[int]int{
+		0:  0,
+		1:  0,
+		2:  0,
+		3:  0,
+		4:  0,
+		5:  0,
+		6:  0,
+		7:  0,
+		8:  1,
+		9:  1,
+		10: 1,
+		11: 1,
+		12: 1,
+		13: 1,
+		14: 1,
+		15: 1,
+	}
+	if !reflect.DeepEqual(CPUToNUMANode, expectedMulti) {
+		t.Errorf("maps are different: got %v expected %v", CPUToNUMANode, expectedMulti)
+	}
+}
+
+func TestGetPCIDevsFromEnv(t *testing.T) {
+	var devs []string
+
+	devs = GetPCIDevicesFromEnv([]string{})
+	if len(devs) > 0 {
+		t.Errorf("unexpected devices: %v", devs)
+	}
+
+	devs = GetPCIDevicesFromEnv([]string{"PATH=/bin:/sbin", "FOO=bar"})
+	if len(devs) > 0 {
+		t.Errorf("unexpected devices: %v", devs)
+	}
+
+	devs = GetPCIDevicesFromEnv([]string{"PATH=/bin:/sbin", "FOO=bar", "PCIDEVICE_FOO=0000:00:00.0"})
+	if len(devs) != 1 && devs[0] != "00:00.0" {
+		t.Errorf("unexpected devices: %v", devs)
+	}
+}
+
+func TestGetPCIDeviceNUMANode(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	basedir, _ := filepath.Split(filename)
+
+	testDataDir := filepath.Join(basedir, "..", "test", "data")
+
+	fakeSysPCIDir := filepath.Join(testDataDir, SysBusPCIDevicesDir)
+
+	NUMAPerDev1, err := GetPCIDeviceToNumaNodeMap(fakeSysPCIDir, []string{"0000:05:00.0"})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expected1 := map[string]int{
+		"0000:05:00.0": -1,
+	}
+	if !reflect.DeepEqual(NUMAPerDev1, expected1) {
+		t.Errorf("maps are different: got %v expected %v", NUMAPerDev1, expected1)
+	}
+
+	NUMAPerDev2, err := GetPCIDeviceToNumaNodeMap(fakeSysPCIDir, []string{"1000:00:1f.3", "1000:3c:00.0"})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expected2 := map[string]int{
+		"1000:00:1f.3": 1,
+		"1000:3c:00.0": 1,
+	}
+	if !reflect.DeepEqual(NUMAPerDev2, expected2) {
+		t.Errorf("maps are different: got %v expected %v", NUMAPerDev2, expected2)
 	}
 
 }
