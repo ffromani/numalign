@@ -41,5 +41,13 @@ $ NUMALIGN_DEBUG=1 ./numalign
 STATUS ALIGNED=true
 NUMA NODE=0
 ^C
-
+$
+$ # what about a quick(er) check?
+$ NUMALIGN_DEBUG=1 NUMALIGN_SLEEP_HOURS=0 ./numalign 
+2020/01/27 14:32:54 CPU: allowed: [0 1 2 3]
+2020/01/27 14:32:54 CPU: NUMA node by id: map[0:0 1:0 2:0 3:0]
+2020/01/27 14:32:54 PCI: devices: 0000:3c:00.0
+STATUS ALIGNED=true
+NUMA NODE=0
+$
 ```
