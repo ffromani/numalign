@@ -5,7 +5,7 @@ dist: binary
 binary: numalign
 
 numalign:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o numalign
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o numalign ./cmd/numalign
 
 clean:
 	rm numalign
