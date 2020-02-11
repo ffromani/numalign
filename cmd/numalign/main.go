@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fromanirh/numalign/cmd"
+	"github.com/fromanirh/numalign/internal/pkg/numalign"
 )
 
 func main() {
@@ -20,6 +20,6 @@ func main() {
 		}
 	}
 
-	cmd.Execute()
+	numalign.Execute()
 	time.Sleep(time.Duration(hours) * time.Hour)
 }
