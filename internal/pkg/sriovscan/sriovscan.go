@@ -1,3 +1,19 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Copyright 2020 Red Hat, Inc.
+ */
+
 package sriovscan
 
 import (
@@ -15,12 +31,13 @@ const (
 
 type PCIDeviceInfo struct {
 	Address  string
-	IsSRIOV  bool
 	NUMANode int
+	IsPhysFn bool
+	IsVFn    bool
 }
 
 func (pdi PCIDeviceInfo) String() string {
-	return fmt.Sprintf("pci@%s numa_node=%d sriov=%v", pdi.Address, pdi.NUMANode, pdi.IsSRIOV)
+	return fmt.Sprintf("pci@%s numa_node=%d physfn=%v vfn=%v", pdi.Address, pdi.NUMANode, pdi.IsPhysFn, pdi.IsVFn)
 }
 
 func GetPCIDeviceInfo(sysPCIDir string) ([]PCIDeviceInfo, error) {
@@ -32,9 +49,16 @@ func GetPCIDeviceInfo(sysPCIDir string) ([]PCIDeviceInfo, error) {
 	}
 
 	for _, entry := range entries {
-		isSRIOV := false
+		isPhysFn := false
+		isVFn := false
 		if _, err := os.Stat(filepath.Join(sysPCIDir, entry.Name(), "sriov_numvfs")); err == nil {
-			isSRIOV = true
+			isPhysFn = true
+		} else if !os.IsNotExist(err) {
+			// unexpected error. Bail out
+			return nil, err
+		}
+		if _, err := os.Stat(filepath.Join(sysPCIDir, entry.Name(), "physfn")); err == nil {
+			isVFn = true
 		} else if !os.IsNotExist(err) {
 			// unexpected error. Bail out
 			return nil, err
@@ -49,15 +73,11 @@ func GetPCIDeviceInfo(sysPCIDir string) ([]PCIDeviceInfo, error) {
 			return nil, err
 		}
 
-		// XXX
-		if nodeNum == -1 {
-			nodeNum = 0
-		}
-
 		pciDevs = append(pciDevs, PCIDeviceInfo{
 			Address:  entry.Name(),
-			IsSRIOV:  isSRIOV,
 			NUMANode: nodeNum,
+			IsPhysFn: isPhysFn,
+			IsVFn:    isVFn,
 		})
 	}
 
