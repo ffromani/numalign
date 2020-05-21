@@ -141,7 +141,8 @@ func GetPCIDevicesFromEnv(environ []string) []string {
 
 func GetPCIDeviceToNumaNodeMap(sysBusPCIDir string, pciDevs []string) (map[string]int, error) {
 	if len(pciDevs) == 0 {
-		return nil, fmt.Errorf("PCI: No devices detected")
+		log.Printf("PCI: devices: none found - SKIP")
+		return make(map[string]int), nil
 	}
 	log.Printf("PCI: devices: %s", strings.Join(pciDevs, " - "))
 

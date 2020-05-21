@@ -27,7 +27,7 @@ import (
 
 func main() {
 	var err error
-	hours := 24 // default
+	hours := 0 // default
 	val := os.Getenv("NUMALIGN_SLEEP_HOURS")
 	if val != "" {
 		hours, err = strconv.Atoi(val)
