@@ -50,4 +50,20 @@ $ NUMALIGN_DEBUG=1 NUMALIGN_SLEEP_HOURS=0 ./numalign
 STATUS ALIGNED=true
 NUMA NODE=0
 $
+$ # you can also check for other processes in the same container
+$ NUMALIGN_DEBUG=1 NUMALIGN_SLEEP_HOURS=0 NUMALIGN_DEBUG=1 ./numalign 1700
+2020/05/21 10:48:25 CPU: allowed for "1700": [0 1 2 3]
+2020/05/21 10:48:25 CPU: NUMA node by id: map[0:0 1:0 2:0 3:0]
+2020/05/21 10:48:25 PCI: devices: 0000:3c:00.0
+STATUS ALIGNED=true
+NUMA NODE=0
+$
+$ NUMALIGN_DEBUG=1 NUMALIGN_SLEEP_HOURS=0 ./numalign 1700 self
+2020/05/21 10:48:36 CPU: allowed for "1700": [0 1 2 3]
+2020/05/21 10:48:36 CPU: allowed for "self": [0 1 2 3]
+2020/05/21 10:48:36 CPU: NUMA node by id: map[0:0 1:0 2:0 3:0]
+2020/05/21 10:48:36 PCI: devices: 0000:3c:00.0
+STATUS ALIGNED=true
+NUMA NODE=0
+$
 ```

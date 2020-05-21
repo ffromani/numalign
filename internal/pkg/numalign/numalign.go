@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -107,13 +108,23 @@ func GetAllowedCPUList(statusFile string) ([]int, error) {
 	return cpuIDs, fmt.Errorf("malformed status file: %s", statusFile)
 }
 
-func GetCPUToNUMANodeMap(sysNodeDir string) (map[int]int, error) {
+func GetCPUToNUMANodeMap(sysNodeDir string, cpuIDs []int) (map[int]int, error) {
 	cpusPerNUMA, err := GetCPUsPerNUMANode(sysNodeDir)
 	if err != nil {
 		return nil, err
 	}
 	CPUToNUMANode := GetCPUNUMANodes(cpusPerNUMA)
-	return CPUToNUMANode, nil
+
+	// filter out only the allowed CPUs
+	CPUMap := make(map[int]int)
+	for _, cpuID := range cpuIDs {
+		_, ok := CPUToNUMANode[cpuID]
+		if !ok {
+			return nil, fmt.Errorf("CPU %d not found on NUMA map: %v", cpuID, CPUToNUMANode)
+		}
+		CPUMap[cpuID] = CPUToNUMANode[cpuID]
+	}
+	return CPUMap, nil
 }
 
 func GetPCIDevicesFromEnv(environ []string) []string {
@@ -130,7 +141,7 @@ func GetPCIDevicesFromEnv(environ []string) []string {
 
 func GetPCIDeviceToNumaNodeMap(sysBusPCIDir string, pciDevs []string) (map[string]int, error) {
 	if len(pciDevs) == 0 {
-		return nil, fmt.Errorf("No PCI devices detected")
+		return nil, fmt.Errorf("PCI: No devices detected")
 	}
 	log.Printf("PCI: devices: %s", strings.Join(pciDevs, " - "))
 
@@ -201,20 +212,40 @@ func Execute() {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	cpuIDs, err := GetAllowedCPUList("/proc/self/status")
+	var pidStrings []string
+	if len(os.Args) > 1 {
+		pidStrings = append(pidStrings, os.Args[1:]...)
+	} else {
+		pidStrings = append(pidStrings, "self")
+	}
+
+	var refCpuIDs []int
+	refCpuIDs, err = GetAllowedCPUList(filepath.Join("/proc", pidStrings[0], "status"))
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	log.Printf("CPU: allowed: %v", cpuIDs)
+	log.Printf("CPU: allowed for %q: %v", pidStrings[0], refCpuIDs)
 
-	CPUToNUMANode, err := GetCPUToNUMANodeMap("/sys/devices/system/node")
+	for _, pidString := range pidStrings[1:] {
+		cpuIDs, err := GetAllowedCPUList(filepath.Join("/proc", pidString, "status"))
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		log.Printf("CPU: allowed for %q: %v", pidString, cpuIDs)
+
+		if !reflect.DeepEqual(refCpuIDs, cpuIDs) {
+			log.Fatalf("CPU: allowed set differs pid %q (%v) pid %q (%v)", pidStrings[0], refCpuIDs, pidString, cpuIDs)
+		}
+	}
+
+	CPUToNUMANode, err := GetCPUToNUMANodeMap(SysDevicesSystemNodeDir, refCpuIDs)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 	log.Printf("CPU: NUMA node by id: %v", CPUToNUMANode)
 
 	pciDevs := GetPCIDevicesFromEnv(os.Environ())
-	NUMAPerDev, err := GetPCIDeviceToNumaNodeMap("/sys/bus/pci/devices/", pciDevs)
+	NUMAPerDev, err := GetPCIDeviceToNumaNodeMap(SysBusPCIDevicesDir, pciDevs)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
