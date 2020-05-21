@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"github.com/fromanirh/cpuset"
 )
 
 const (
@@ -41,7 +41,7 @@ func splitCPUList(cpuList string) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return cpus.ToSlice(), nil
+	return cpus, nil
 }
 
 type Resources struct {
@@ -190,7 +190,7 @@ func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 		if err != nil {
 			return nil, err
 		}
-		cpusPerNUMA[nodeNum] = cpus.ToSlice()
+		cpusPerNUMA[nodeNum] = cpus
 	}
 	return cpusPerNUMA, nil
 }
