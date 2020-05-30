@@ -2,8 +2,6 @@ module github.com/fromanirh/numalign
 
 go 1.13
 
-require github.com/fromanirh/cpuset v0.0.0-20200511085626-192d26b0468d
-
 // Pinned to kubernetes-1.18.3
 replace (
 	k8s.io/api => k8s.io/api v0.18.3
@@ -29,3 +27,5 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.18.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.3
 )
+
+require github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438

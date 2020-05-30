@@ -1,2 +1,2 @@
-# github.com/fromanirh/cpuset v0.0.0-20200511085626-192d26b0468d
+# github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438
 github.com/fromanirh/cpuset
