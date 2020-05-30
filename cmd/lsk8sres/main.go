@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/fromanirh/cpuset"
@@ -32,20 +33,41 @@ func ExpectNoError(err error) {
 	}
 }
 
+func summarizeCPUIdList(data map[int]cpus.CPUIdList) string {
+	ref := 0
+	var items []string
+	for cpuId, cpuList := range data {
+		cur := len(cpuList)
+		if ref == 0 {
+			ref = cur
+		} else if ref != cur {
+			items = append(items, fmt.Sprintf("core%d=%d", cpuId, cur))
+		}
+	}
+	if len(items) > 0 {
+		return strings.Join(items, ",")
+	}
+	return fmt.Sprintf("%d", ref)
+}
+
+func summary(cpuRes *cpus.CPUs) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	fmt.Fprintf(w, "CPU(s):\t%d\n", len(cpuRes.Present))
+	fmt.Fprintf(w, "Present CPU(s) list:\t%s\n", cpuset.Unparse(cpuRes.Present))
+	fmt.Fprintf(w, "On-line CPU(s) list:\t%s\n", cpuset.Unparse(cpuRes.Online))
+	fmt.Fprintf(w, "Thread(s) per core:\t%s\n", summarizeCPUIdList(cpuRes.CoreCPUs))
+	fmt.Fprintf(w, "Core(s) per socket:\t%s\n", summarizeCPUIdList(cpuRes.PackageCPUs))
+	fmt.Fprintf(w, "Socket(s):\t%d\n", cpuRes.Packages)
+	fmt.Fprintf(w, "NUMA node(s):\t%d\n", cpuRes.NUMANodes)
+	for i := 0; i < cpuRes.NUMANodes; i++ {
+		fmt.Fprintf(w, "NUMA node%d CPU(s):\t%s\n", i, cpuset.Unparse(cpuRes.NUMANodeCPUs[i]))
+	}
+	w.Flush()
+
+}
+
 func main() {
 	cpuRes, err := cpus.NewCPUs("/sys")
 	ExpectNoError(err)
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-
-	fmt.Fprintf(w, "CPU(s):\t%d\n", cpuRes.Total)
-	fmt.Fprintf(w, "On-line CPU(s) list:\t%s\n", cpuset.Unparse(cpuRes.Online))
-	fmt.Fprintf(w, "Thread(s) per core:\t%d\n", cpuRes.ThreadsPerCore)
-	fmt.Fprintf(w, "Core(s) per socket:\t%d\n", cpuRes.CoresPerSocket)
-	fmt.Fprintf(w, "Socket(s):\t%d\n", cpuRes.Sockets)
-	fmt.Fprintf(w, "NUMA node(s):\t%d\n", cpuRes.NUMANodes)
-	for i := 0; i < cpuRes.NUMANodes; i++ {
-		fmt.Fprintf(w, "NUMA node%d CPU(s):\t%s\n", cpuset.Unparse(cpuRes.NUMANodeCPUs[i]))
-	}
-	w.Flush()
+	summary(cpuRes)
 }
