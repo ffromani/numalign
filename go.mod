@@ -2,4 +2,7 @@ module github.com/fromanirh/numalign
 
 go 1.13
 
-require github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438
+require (
+	github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438
+	github.com/spf13/cobra v1.0.0
+)

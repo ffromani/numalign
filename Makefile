@@ -6,7 +6,7 @@ outdir:
 
 dist: binaries
 
-binaries: numalign sriovscan lsk8sres
+binaries: numalign sriovscan lsnt
 
 numalign: outdir
 	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/numalign ./cmd/numalign
@@ -14,8 +14,8 @@ numalign: outdir
 sriovscan: outdir
 	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/sriovscan ./cmd/sriovscan
 
-lsk8sres: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/lsk8res ./cmd/lsk8sres
+lsnt: outdir
+	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/lsnt ./cmd/lsnt
 
 clean:
 	rm -rf _output

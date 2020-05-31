@@ -14,7 +14,7 @@
  * Copyright 2020 Red Hat, Inc.
  */
 
-package main
+package cmd
 
 import (
 	"fmt"
@@ -22,16 +22,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/fromanirh/cpuset"
-	"github.com/fromanirh/numalign/pkg/k8sresource/cpus"
-)
+	"github.com/spf13/cobra"
 
-func ExpectNoError(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
-}
+	"github.com/fromanirh/cpuset"
+	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
+)
 
 func summarizeCPUIdList(data map[int]cpus.CPUIdList) string {
 	ref := 0
@@ -66,8 +61,21 @@ func summary(cpuRes *cpus.CPUs) {
 
 }
 
-func main() {
+func showCPU(cmd *cobra.Command, args []string) error {
 	cpuRes, err := cpus.NewCPUs("/sys")
-	ExpectNoError(err)
+	if err != nil {
+		return err
+	}
 	summary(cpuRes)
+	return nil
+}
+
+func NewCPUCommand() *cobra.Command {
+	show := &cobra.Command{
+		Use:   "cpu",
+		Short: "show cpu details like lscpu(1)",
+		RunE:  showCPU,
+		Args:  cobra.NoArgs,
+	}
+	return show
 }
