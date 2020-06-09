@@ -30,8 +30,8 @@ import (
  * https://www.kernel.org/doc/html/latest/admin-guide/cputopology.html
  */
 const (
-	PathDevsSysCPU  = "/sys/devices/system/cpu"
-	PathDevsSysNode = "/sys/devices/system/node"
+	PathDevsSysCPU  = "devices/system/cpu"
+	PathDevsSysNode = "devices/system/node"
 )
 
 type CPUIdList []int
