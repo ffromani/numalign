@@ -57,29 +57,29 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 	for _, entry := range entries {
 		isPhysFn := false
 		isVFn := false
-		if _, err := os.Stat(filepath.Join(sysfsPath, entry.Name(), "sriov_numvfs")); err == nil {
+		numVfs := 0
+		parentFn := ""
+		numvfsPath := filepath.Join(sysfsPath, entry.Name(), "sriov_numvfs")
+		if _, err := os.Stat(numvfsPath); err == nil {
 			isPhysFn = true
+			numVfs, _ = readInt(numvfsPath)
 		} else if !os.IsNotExist(err) {
 			// unexpected error. Bail out
 			return nil, err
 		}
-		if _, err := os.Stat(filepath.Join(sysfsPath, entry.Name(), "physfn")); err == nil {
+		physFnPath := filepath.Join(sysfsPath, entry.Name(), "physfn")
+		if _, err := os.Stat(physFnPath); err == nil {
 			isVFn = true
-			// TODO: readlink
+			if dest, err := os.Readlink(physFnPath); err == nil {
+				parentFn = filepath.Base(dest)
+			}
 		} else if !os.IsNotExist(err) {
 			// unexpected error. Bail out
 			return nil, err
 		}
 
 		devPath := filepath.Join(sysfsPath, entry.Name())
-		content, err := ioutil.ReadFile(filepath.Join(devPath, "numa_node"))
-		if err != nil {
-			return nil, err
-		}
-		nodeNum, err := strconv.Atoi(strings.TrimSpace(string(content)))
-		if err != nil {
-			return nil, err
-		}
+		nodeNum, err := readInt(filepath.Join(devPath, "numa_node"))
 		// FIX for single-numa node (e.g. dev laptop)
 		if nodeNum < 0 {
 			nodeNum = 0
@@ -101,7 +101,9 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 		pciDevs := numaNodePCIDevs[nodeNum]
 		pciDevs = append(pciDevs, SRIOVDeviceInfo{
 			IsPhysFn: isPhysFn,
+			NumVFS: numVfs,
 			IsVFn:    isVFn,
+			ParentFn: parentFn,
 			address:  entry.Name(),
 			numaNode: nodeNum,
 			devClass: devClass,
@@ -119,7 +121,9 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 
 type SRIOVDeviceInfo struct {
 	IsPhysFn bool
+	NumVFS int // only PFs
 	IsVFn    bool
+	ParentFn string// only VFs
 	address  string
 	numaNode int
 	devClass int64
@@ -158,3 +162,11 @@ func readHexInt64(path string) (int64, error) {
 	}
 	return strconv.ParseInt(strings.TrimSpace(string(content)), 0, 64)
 }
+
+func readInt(path string) (int, error) {
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			return 0, err
+		}
+		return strconv.Atoi(strings.TrimSpace(string(content)))
+	}

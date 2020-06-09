@@ -35,13 +35,17 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 	for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
 		numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
 		for _, devInfo := range devInfos {
+			extra := fmt.Sprintf(" (%x)", devInfo.DevClass())
 			if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && sriovInfo.IsSRIOV() {
-				dev := numaNode.Add(fmt.Sprintf("%s %x:%x", sriovInfo.Address(), sriovInfo.Vendor(), sriovInfo.Device()))
-				dev.Add(fmt.Sprintf("physfn=%v", sriovInfo.IsPhysFn))
-				dev.Add(fmt.Sprintf("vfn=%v", sriovInfo.IsVFn))
-			} else {
-				numaNode.Add(fmt.Sprintf("%s %x:%x (%x)", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), devInfo.DevClass()))
+				if sriovInfo.IsPhysFn {
+					extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
+				} else if sriovInfo.IsVFn {
+					extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
+				} else {
+					extra = " ???"
+				}
 			}
+			numaNode.Add(fmt.Sprintf("%s %x:%x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
 		}
 	}
 	fmt.Println(sys.Print())
