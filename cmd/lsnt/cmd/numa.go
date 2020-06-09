@@ -19,28 +19,34 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/disiqueira/gotree"
 	"github.com/spf13/cobra"
+
+	"github.com/fromanirh/cpuset"
+	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
 )
 
-// NewRootCommand returns entrypoint command to interact with all other commands
-func NewRootCommand() *cobra.Command {
-
-	root := &cobra.Command{
-		Use:   "lsnt",
-		Short: "lsnt displays *N*UMA *T*opology informations about the system",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprint(cmd.OutOrStderr(), cmd.UsageString())
-		},
-		SilenceUsage:  true,
-		SilenceErrors: true,
+func showNUMA(cmd *cobra.Command, args []string) error {
+	cpuRes, err := cpus.NewCPUs("/sys")
+	if err != nil {
+		return err
 	}
 
-	root.AddCommand(
-		NewCPUCommand(),
-		NewNUMACommand(),
-		NewPCIDevsCommand(),
-	)
+	sys := gotree.New(".")
+	for nodeId, cpuIdList := range cpuRes.NUMANodeCPUs {
+		numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
+		numaNode.Add(cpuset.Unparse(cpuIdList))
+	}
+	fmt.Println(sys.Print())
+	return nil
+}
 
-	return root
-
+func NewNUMACommand() *cobra.Command {
+	show := &cobra.Command{
+		Use:   "numa",
+		Short: "show NUMA device tree",
+		RunE:  showNUMA,
+		Args:  cobra.NoArgs,
+	}
+	return show
 }

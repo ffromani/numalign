@@ -1,3 +1,5 @@
+# github.com/disiqueira/gotree v1.0.0
+github.com/disiqueira/gotree
 # github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438
 github.com/fromanirh/cpuset
 # github.com/inconshreveable/mousetrap v1.0.0

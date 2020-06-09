@@ -30,8 +30,8 @@ import (
  * https://www.kernel.org/doc/html/latest/admin-guide/cputopology.html
  */
 const (
-	PathSysCPU  = "/sys/devices/system/cpu"
-	PathSysNode = "/sys/devices/system/node"
+	PathDevsSysCPU  = "/sys/devices/system/cpu"
+	PathDevsSysNode = "/sys/devices/system/node"
 )
 
 type CPUIdList []int
@@ -44,6 +44,69 @@ type CPUs struct {
 	Packages     int
 	NUMANodes    int
 	NUMANodeCPUs map[int]CPUIdList
+}
+
+func NewCPUs(sysfs string) (*CPUs, error) {
+	sysfsCPUPath := filepath.Join(sysfs, PathDevsSysCPU)
+	present, err := readCPUList(filepath.Join(sysfsCPUPath, "present"))
+	if err != nil {
+		return nil, err
+	}
+	online, err := readCPUList(filepath.Join(sysfsCPUPath, "online"))
+	if err != nil {
+		return nil, err
+	}
+
+	sysfsNodePath := filepath.Join(sysfs, PathDevsSysNode)
+	nodes, err := countNUMANodes(sysfsNodePath)
+	if err != nil {
+		return nil, err
+	}
+
+	packages := make(map[string]CPUIdList)
+	coreCPUs := make(map[int]CPUIdList)
+	packageCPUs := make(map[int]CPUIdList)
+	for _, cpuId := range online {
+		sysfsCPUIdPath := pathSysCPUxTopology(sysfsCPUPath, cpuId)
+		cpuThreads, err := readCPUList(filepath.Join(sysfsCPUIdPath, "thread_siblings_list"))
+		if err != nil {
+			return nil, err
+		}
+		cpuCores, err := readCPUList(filepath.Join(sysfsCPUIdPath, "core_siblings_list"))
+		if err != nil {
+			return nil, err
+		}
+		physPackageId, err := readSysFSFile(filepath.Join(sysfsCPUIdPath, "physical_package_id"))
+		if err != nil {
+			return nil, err
+		}
+
+		coreCPUs[cpuId] = cpuThreads
+		packageCPUs[cpuId] = cpuCores
+
+		cpusPerPhysPkg := packages[physPackageId]
+		cpusPerPhysPkg = append(cpusPerPhysPkg, cpuId)
+		packages[physPackageId] = cpusPerPhysPkg
+	}
+
+	numaNodeCPUs := make(map[int]CPUIdList)
+	for node := 0; node < nodes; node++ {
+		cpus, err := readCPUList(filepath.Join(pathSysNodex(sysfsNodePath, node), "cpulist"))
+		if err != nil {
+			return nil, err
+		}
+		numaNodeCPUs[node] = cpus
+	}
+
+	return &CPUs{
+		Present:      present,
+		Online:       online,
+		CoreCPUs:     coreCPUs,
+		PackageCPUs:  packageCPUs,
+		Packages:     len(packages),
+		NUMANodes:    nodes,
+		NUMANodeCPUs: numaNodeCPUs,
+	}, nil
 }
 
 func readSysFSFile(path string) (string, error) {
@@ -66,12 +129,12 @@ func readCPUList(path string) (CPUIdList, error) {
 	return CPUIdList(cpus), nil
 }
 
-func pathSysCPUxTopology(cpuId int) string {
-	return filepath.Join(PathSysCPU, fmt.Sprintf("cpu%d", cpuId), "topology")
+func pathSysCPUxTopology(sysfsCPUPath string, cpuId int) string {
+	return filepath.Join(sysfsCPUPath, fmt.Sprintf("cpu%d", cpuId), "topology")
 }
 
-func pathSysNodex(nodeId int) string {
-	return filepath.Join(PathSysNode, fmt.Sprintf("node%d", nodeId))
+func pathSysNodex(sysfsNodePath string, nodeId int) string {
+	return filepath.Join(sysfsNodePath, fmt.Sprintf("node%d", nodeId))
 }
 
 func countNUMANodes(nodepath string) (int, error) {
@@ -87,64 +150,4 @@ func countNUMANodes(nodepath string) (int, error) {
 		}
 	}
 	return nodes, nil
-}
-
-func NewCPUs(sysfs string) (*CPUs, error) {
-	present, err := readCPUList(filepath.Join(PathSysCPU, "present"))
-	if err != nil {
-		return nil, err
-	}
-	online, err := readCPUList(filepath.Join(PathSysCPU, "online"))
-	if err != nil {
-		return nil, err
-	}
-
-	nodes, err := countNUMANodes(PathSysNode)
-	if err != nil {
-		return nil, err
-	}
-
-	packages := make(map[string]CPUIdList)
-	coreCPUs := make(map[int]CPUIdList)
-	packageCPUs := make(map[int]CPUIdList)
-	for _, cpuId := range online {
-		cpuThreads, err := readCPUList(filepath.Join(pathSysCPUxTopology(cpuId), "thread_siblings_list"))
-		if err != nil {
-			return nil, err
-		}
-		cpuCores, err := readCPUList(filepath.Join(pathSysCPUxTopology(cpuId), "core_siblings_list"))
-		if err != nil {
-			return nil, err
-		}
-		physPackageId, err := readSysFSFile(filepath.Join(pathSysCPUxTopology(cpuId), "physical_package_id"))
-		if err != nil {
-			return nil, err
-		}
-
-		coreCPUs[cpuId] = cpuThreads
-		packageCPUs[cpuId] = cpuCores
-
-		cpusPerPhysPkg := packages[physPackageId]
-		cpusPerPhysPkg = append(cpusPerPhysPkg, cpuId)
-		packages[physPackageId] = cpusPerPhysPkg
-	}
-
-	numaNodeCPUs := make(map[int]CPUIdList)
-	for node := 0; node < nodes; node++ {
-		cpus, err := readCPUList(filepath.Join(pathSysNodex(node), "cpulist"))
-		if err != nil {
-			return nil, err
-		}
-		numaNodeCPUs[node] = cpus
-	}
-
-	return &CPUs{
-		Present:      present,
-		Online:       online,
-		CoreCPUs:     coreCPUs,
-		PackageCPUs:  packageCPUs,
-		Packages:     len(packages),
-		NUMANodes:    nodes,
-		NUMANodeCPUs: numaNodeCPUs,
-	}, nil
 }
