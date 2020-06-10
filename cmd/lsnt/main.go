@@ -23,7 +23,7 @@ import (
 	"github.com/fromanirh/numalign/cmd/lsnt/cmd"
 )
 
-func ExpectNoError(err error) {
+func expectNoError(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
@@ -31,5 +31,5 @@ func ExpectNoError(err error) {
 }
 
 func main() {
-	ExpectNoError(cmd.NewRootCommand().Execute())
+	expectNoError(cmd.NewRootCommand().Execute())
 }

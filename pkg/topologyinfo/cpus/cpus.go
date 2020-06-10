@@ -34,8 +34,10 @@ const (
 	PathDevsSysNode = "devices/system/node"
 )
 
+// CPUIdList is a list of CPU IDs (integer core identifier)
 type CPUIdList []int
 
+// CPUs reports the information about all the CPU found in the system
 type CPUs struct {
 	Present      CPUIdList
 	Online       CPUIdList
@@ -46,6 +48,7 @@ type CPUs struct {
 	NUMANodeCPUs map[int]CPUIdList
 }
 
+// NewCPUs extracts the CPU information from a given sysfs-like path
 func NewCPUs(sysfs string) (*CPUs, error) {
 	sysfsCPUPath := filepath.Join(sysfs, PathDevsSysCPU)
 	present, err := readCPUList(filepath.Join(sysfsCPUPath, "present"))
@@ -66,8 +69,8 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 	packages := make(map[string]CPUIdList)
 	coreCPUs := make(map[int]CPUIdList)
 	packageCPUs := make(map[int]CPUIdList)
-	for _, cpuId := range online {
-		sysfsCPUIdPath := pathSysCPUxTopology(sysfsCPUPath, cpuId)
+	for _, cpuID := range online {
+		sysfsCPUIdPath := pathSysCPUxTopology(sysfsCPUPath, cpuID)
 		cpuThreads, err := readCPUList(filepath.Join(sysfsCPUIdPath, "thread_siblings_list"))
 		if err != nil {
 			return nil, err
@@ -76,17 +79,17 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 		if err != nil {
 			return nil, err
 		}
-		physPackageId, err := readSysFSFile(filepath.Join(sysfsCPUIdPath, "physical_package_id"))
+		physPackageID, err := readSysFSFile(filepath.Join(sysfsCPUIdPath, "physical_package_id"))
 		if err != nil {
 			return nil, err
 		}
 
-		coreCPUs[cpuId] = cpuThreads
-		packageCPUs[cpuId] = cpuCores
+		coreCPUs[cpuID] = cpuThreads
+		packageCPUs[cpuID] = cpuCores
 
-		cpusPerPhysPkg := packages[physPackageId]
-		cpusPerPhysPkg = append(cpusPerPhysPkg, cpuId)
-		packages[physPackageId] = cpusPerPhysPkg
+		cpusPerPhysPkg := packages[physPackageID]
+		cpusPerPhysPkg = append(cpusPerPhysPkg, cpuID)
+		packages[physPackageID] = cpusPerPhysPkg
 	}
 
 	numaNodeCPUs := make(map[int]CPUIdList)
@@ -129,12 +132,12 @@ func readCPUList(path string) (CPUIdList, error) {
 	return CPUIdList(cpus), nil
 }
 
-func pathSysCPUxTopology(sysfsCPUPath string, cpuId int) string {
-	return filepath.Join(sysfsCPUPath, fmt.Sprintf("cpu%d", cpuId), "topology")
+func pathSysCPUxTopology(sysfsCPUPath string, cpuID int) string {
+	return filepath.Join(sysfsCPUPath, fmt.Sprintf("cpu%d", cpuID), "topology")
 }
 
-func pathSysNodex(sysfsNodePath string, nodeId int) string {
-	return filepath.Join(sysfsNodePath, fmt.Sprintf("node%d", nodeId))
+func pathSysNodex(sysfsNodePath string, nodeID int) string {
+	return filepath.Join(sysfsNodePath, fmt.Sprintf("node%d", nodeID))
 }
 
 func countNUMANodes(nodepath string) (int, error) {

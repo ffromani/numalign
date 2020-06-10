@@ -25,39 +25,55 @@ import (
 	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
 )
 
+type pcidevOpts struct {
+	showTree bool
+}
+
+var pdOpts pcidevOpts
+
 func showPCIDevs(cmd *cobra.Command, args []string) error {
 	pciDevs, err := pcidev.NewPCIDevices("/sys")
 	if err != nil {
 		return err
 	}
 
-	sys := gotree.New(".")
-	for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
-		numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
-		for _, devInfo := range devInfos {
-			extra := fmt.Sprintf(" (%x)", devInfo.DevClass())
-			if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && sriovInfo.IsSRIOV() {
-				if sriovInfo.IsPhysFn {
-					extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
-				} else if sriovInfo.IsVFn {
-					extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
-				} else {
-					extra = " ???"
+	if pdOpts.showTree {
+		sys := gotree.New(".")
+		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
+			numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
+			for _, devInfo := range devInfos {
+				extra := fmt.Sprintf(" (%04x)", devInfo.DevClass())
+				if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && (sriovInfo.IsPhysFn || sriovInfo.IsVFn) {
+					if sriovInfo.IsPhysFn {
+						extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
+					} else if sriovInfo.IsVFn {
+						extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
+					} else {
+						extra = " ???"
+					}
 				}
+				numaNode.Add(fmt.Sprintf("%s %04x:%04x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
 			}
-			numaNode.Add(fmt.Sprintf("%s %x:%x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
 		}
+		fmt.Println(sys.Print())
+	} else {
+		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
+			for _, devInfo := range devInfos {
+				fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), devInfo.DevClass(), devInfo.Vendor(), devInfo.Device(), nodeId)
+			}
+		}
+
 	}
-	fmt.Println(sys.Print())
 	return nil
 }
 
-func NewPCIDevsCommand() *cobra.Command {
+func newPCIDevsCommand() *cobra.Command {
 	show := &cobra.Command{
 		Use:   "pcidevs",
 		Short: "show PCI devices in the system",
 		RunE:  showPCIDevs,
 		Args:  cobra.NoArgs,
 	}
+	show.Flags().BoolVarP(&pdOpts.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
 	return show
 }

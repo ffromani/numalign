@@ -22,6 +22,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type cmdOpts struct {
+	sysFSRoot string
+	verbose   int
+}
+
+var opts cmdOpts
+
 // NewRootCommand returns entrypoint command to interact with all other commands
 func NewRootCommand() *cobra.Command {
 
@@ -35,10 +42,14 @@ func NewRootCommand() *cobra.Command {
 		SilenceErrors: true,
 	}
 
+	root.Flags().StringVarP(&opts.sysFSRoot, "sysfs", "S", "/sys", "sysfs root")
+	root.Flags().IntVar(&opts.verbose, "verbose", 1, "verbosiness level")
+
 	root.AddCommand(
-		NewCPUCommand(),
-		NewNUMACommand(),
-		NewPCIDevsCommand(),
+		newCPUCommand(),
+		newNUMACommand(),
+		newPCIDevsCommand(),
+		newDaemonWaitCommand(),
 	)
 
 	return root

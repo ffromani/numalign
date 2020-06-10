@@ -17,36 +17,39 @@
 package cmd
 
 import (
-	"fmt"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/disiqueira/gotree"
 	"github.com/spf13/cobra"
-
-	"github.com/fromanirh/cpuset"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
 )
 
-func showNUMA(cmd *cobra.Command, args []string) error {
-	cpuRes, err := cpus.NewCPUs(opts.sysFSRoot)
-	if err != nil {
-		return err
+type daemonwaitOpts struct {
+	healthFile string
+}
+
+var dwOpts daemonwaitOpts
+
+func waitForever(cmd *cobra.Command, args []string) error {
+	if dwOpts.healthFile != "" {
+		message := []byte("ok")
+		ioutil.WriteFile(dwOpts.healthFile, message, 0644) // intentionally ignore error
 	}
 
-	sys := gotree.New(".")
-	for nodeID, cpuIDList := range cpuRes.NUMANodeCPUs {
-		numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeID))
-		numaNode.Add(cpuset.Unparse(cpuIDList))
-	}
-	fmt.Println(sys.Print())
+	exitSignal := make(chan os.Signal)
+	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-exitSignal
 	return nil
 }
 
-func newNUMACommand() *cobra.Command {
+func newDaemonWaitCommand() *cobra.Command {
 	show := &cobra.Command{
-		Use:   "numa",
-		Short: "show NUMA device tree",
-		RunE:  showNUMA,
+		Use:   "daemonwait",
+		Short: "wait forever, or until a UNIX signal (SIGINT, SIGTERM) arrives",
+		RunE:  waitForever,
 		Args:  cobra.NoArgs,
 	}
+	show.Flags().StringVarP(&dwOpts.healthFile, "health-file", "H", "", "health file full path. Use \"\" to disable.")
 	return show
 }

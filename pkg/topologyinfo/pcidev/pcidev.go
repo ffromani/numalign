@@ -26,26 +26,39 @@ import (
 )
 
 const (
+	// PathBusPCIDevices is the subpath which holds informations about the PCI(-express) devices
 	PathBusPCIDevices = "bus/pci/devices/"
 )
 
+// PCIDeviceInfo represents the information about a single PCI(-express) device
 type PCIDeviceInfo interface {
+	// Address is the FULL PCI address (bus_id:device_id) of the device, as string
 	Address() string
+	// BusAddress is the PCI bus identifier, as string
+	BusAddress() string
+	// DevAddress() is the PCI device address on the PCI bus, as string
+	DevAddress() string
+	// String returns human-friendly representation of the device info
 	String() string
+	// DevClass is the PCI device class, as integer
 	DevClass() int64
+	// Vendor is the PCI vendor identifier, as integer
 	Vendor() int64
+	// Device is the PCI device identifier, as integer
 	Device() int64
 	// TODO: driver
 }
 
+// PCIDeviceInfoList is a list of PCIDeviceInfo
 type PCIDeviceInfoList []PCIDeviceInfo
 
+// PCIDevices reports the information about all the PCI(-express) devices found in the system
 type PCIDevices struct {
 	NUMAPCIDevices map[int]PCIDeviceInfoList
 }
 
+// NewPCIDevices extracts the information about the PCI(-express) devices from a given sysfs-like path
 func NewPCIDevices(sysfs string) (*PCIDevices, error) {
-
 	sysfsPath := filepath.Join(sysfs, PathBusPCIDevices)
 
 	numaNodePCIDevs := make(map[int]PCIDeviceInfoList)
@@ -101,12 +114,12 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 		pciDevs := numaNodePCIDevs[nodeNum]
 		pciDevs = append(pciDevs, SRIOVDeviceInfo{
 			IsPhysFn: isPhysFn,
-			NumVFS: numVfs,
+			NumVFS:   numVfs,
 			IsVFn:    isVFn,
 			ParentFn: parentFn,
 			address:  entry.Name(),
 			numaNode: nodeNum,
-			devClass: devClass,
+			devClass: (devClass >> 8), // pciutils lib/sysfs.c
 			vendor:   vendor,
 			device:   device,
 		})
@@ -119,11 +132,16 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 
 }
 
+// SRIOVDeviceInfo extends PCIDeviceInfo with SRIOV-specific data
 type SRIOVDeviceInfo struct {
+	// ISPhysFn is true if this device is a SRIOV PHYSical FunctioN
 	IsPhysFn bool
+	// NumVFS is the NUMber of Virtual Functions this device have configured, if IsPhysFn=true. Meaningless otherwise
 	NumVFS int // only PFs
-	IsVFn    bool
-	ParentFn string// only VFs
+	// IsVFn is true if this device is a Virtual FunctioN
+	IsVFn bool
+	// ParentFn is the bus_id:device_id PCI(-express) address of the parent Physical Function, if IsVFn=true. Meaningless otherwise.
+	ParentFn string // only VFs
 	address  string
 	numaNode int
 	devClass int64
@@ -131,22 +149,34 @@ type SRIOVDeviceInfo struct {
 	device   int64
 }
 
-func (sdi SRIOVDeviceInfo) IsSRIOV() bool {
-	return sdi.IsPhysFn || sdi.IsVFn
-}
-
+// Address is the FULL PCI address (bus_id:device_id) of the device, as string
 func (sdi SRIOVDeviceInfo) Address() string {
 	return sdi.address
 }
 
+// BusAddress is the PCI bus identifier, as int
+func (sdi SRIOVDeviceInfo) BusAddress() string {
+	items := strings.SplitN(sdi.address, ":", 2)
+	return items[0]
+}
+
+// DevAddress() is the PCI device address on the PCI bus, as int
+func (sdi SRIOVDeviceInfo) DevAddress() string {
+	items := strings.SplitN(sdi.address, ":", 2)
+	return items[1]
+}
+
+// DevClass is the PCI device class, as integer
 func (sdi SRIOVDeviceInfo) DevClass() int64 {
 	return sdi.devClass
 }
 
+// Vendor is the PCI vendor identifier, as integer
 func (sdi SRIOVDeviceInfo) Vendor() int64 {
 	return sdi.vendor
 }
 
+// Device is the PCI device identifier, as integer
 func (sdi SRIOVDeviceInfo) Device() int64 {
 	return sdi.device
 }
@@ -164,9 +194,9 @@ func readHexInt64(path string) (int64, error) {
 }
 
 func readInt(path string) (int, error) {
-		content, err := ioutil.ReadFile(path)
-		if err != nil {
-			return 0, err
-		}
-		return strconv.Atoi(strings.TrimSpace(string(content)))
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
 	}
+	return strconv.Atoi(strings.TrimSpace(string(content)))
+}

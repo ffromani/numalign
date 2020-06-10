@@ -31,12 +31,12 @@ import (
 func summarizeCPUIdList(data map[int]cpus.CPUIdList) string {
 	ref := 0
 	var items []string
-	for cpuId, cpuList := range data {
+	for cpuID, cpuList := range data {
 		cur := len(cpuList)
 		if ref == 0 {
 			ref = cur
 		} else if ref != cur {
-			items = append(items, fmt.Sprintf("core%d=%d", cpuId, cur))
+			items = append(items, fmt.Sprintf("core%d=%d", cpuID, cur))
 		}
 	}
 	if len(items) > 0 {
@@ -62,7 +62,7 @@ func summary(cpuRes *cpus.CPUs) {
 }
 
 func showCPU(cmd *cobra.Command, args []string) error {
-	cpuRes, err := cpus.NewCPUs("/sys")
+	cpuRes, err := cpus.NewCPUs(opts.sysFSRoot)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func showCPU(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func NewCPUCommand() *cobra.Command {
+func newCPUCommand() *cobra.Command {
 	show := &cobra.Command{
 		Use:   "cpu",
 		Short: "show cpu details like lscpu(1)",
