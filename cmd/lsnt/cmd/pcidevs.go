@@ -26,8 +26,9 @@ import (
 )
 
 type pcidevOpts struct {
-	showTree    bool
-	networkOnly bool
+	showTree     bool
+	networkOnly  bool
+	showVFParent bool
 }
 
 func (pd pcidevOpts) IsInterestingDevice(dc int64) bool {
@@ -50,23 +51,37 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 	}
 
 	if pdOpts.showTree {
+		physFns := make(map[string]gotree.Tree)
 		sys := gotree.New(".")
 		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
 			numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
 			for _, devInfo := range devInfos {
 				dc := devInfo.DevClass()
+				parent := numaNode
+				addParent := false
+
 				extra := fmt.Sprintf(" (%04x)", dc)
 				if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && (sriovInfo.IsPhysFn || sriovInfo.IsVFn) {
 					if sriovInfo.IsPhysFn {
 						extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
+						addParent = pdOpts.showVFParent
 					} else if sriovInfo.IsVFn {
-						extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
+						if pDev, ok := physFns[sriovInfo.ParentFn]; ok {
+							parent = pDev
+							extra = fmt.Sprintf(" vfn")
+						} else {
+							extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
+						}
 					} else {
 						extra = " ???"
 					}
 				}
 				if pdOpts.IsInterestingDevice(dc) {
-					numaNode.Add(fmt.Sprintf("%s %04x:%04x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
+					addr := devInfo.Address()
+					phDev := parent.Add(fmt.Sprintf("%s %04x:%04x%s", addr, devInfo.Vendor(), devInfo.Device(), extra))
+					if addParent {
+						physFns[addr] = phDev
+					}
 				}
 			}
 		}
@@ -94,5 +109,6 @@ func newPCIDevsCommand() *cobra.Command {
 	}
 	show.Flags().BoolVarP(&pdOpts.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
 	show.Flags().BoolVarP(&pdOpts.networkOnly, "network-only", "N", false, "print only network devices.")
+	show.Flags().BoolVarP(&pdOpts.showVFParent, "show-vf-parent", "P", false, "move VFs under their parent PFs.")
 	return show
 }
