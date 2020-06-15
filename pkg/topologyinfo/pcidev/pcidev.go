@@ -28,6 +28,7 @@ import (
 const (
 	// PathBusPCIDevices is the subpath which holds informations about the PCI(-express) devices
 	PathBusPCIDevices = "bus/pci/devices/"
+	NumaNodeUnknown   = -1
 )
 
 // PCIDeviceInfo represents the information about a single PCI(-express) device
@@ -93,10 +94,8 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 
 		devPath := filepath.Join(sysfsPath, entry.Name())
 		nodeNum, err := readInt(filepath.Join(devPath, "numa_node"))
-		// FIX for single-numa node (e.g. dev laptop)
-		if nodeNum < 0 {
-			nodeNum = 0
-		}
+		// nodeNum may be -1 (minus-one). This is bad, and likely a firmware bug, see:
+		// https://access.redhat.com/solutions/435313
 
 		devClass, err := readHexInt64(filepath.Join(devPath, "class"))
 		if err != nil {

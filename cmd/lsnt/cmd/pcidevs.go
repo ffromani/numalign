@@ -53,8 +53,14 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 	if pdOpts.showTree {
 		physFns := make(map[string]gotree.Tree)
 		sys := gotree.New(".")
-		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
-			numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
+		for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
+			var numaNode gotree.Tree
+			if nodeID == pcidev.NumaNodeUnknown {
+				numaNode = sys.Add("UNKNOWN")
+			} else {
+				numaNode = sys.Add(fmt.Sprintf("numa%02d", nodeID))
+			}
+
 			for _, devInfo := range devInfos {
 				dc := devInfo.DevClass()
 				parent := numaNode
@@ -87,11 +93,11 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println(sys.Print())
 	} else {
-		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
+		for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
 			for _, devInfo := range devInfos {
 				dc := devInfo.DevClass()
 				if pdOpts.IsInterestingDevice(dc) {
-					fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), dc, devInfo.Vendor(), devInfo.Device(), nodeId)
+					fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), dc, devInfo.Vendor(), devInfo.Device(), nodeID)
 				}
 			}
 		}
