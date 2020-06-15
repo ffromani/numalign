@@ -26,10 +26,22 @@ import (
 )
 
 type pcidevOpts struct {
-	showTree bool
+	showTree    bool
+	networkOnly bool
+}
+
+func (pd pcidevOpts) IsInterestingDevice(dc int64) bool {
+	if !pd.networkOnly {
+		return true
+	}
+	return dc == DevClassNetwork
 }
 
 var pdOpts pcidevOpts
+
+const (
+	DevClassNetwork int64 = 0x0200
+)
 
 func showPCIDevs(cmd *cobra.Command, args []string) error {
 	pciDevs, err := pcidev.NewPCIDevices("/sys")
@@ -42,7 +54,8 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
 			numaNode := sys.Add(fmt.Sprintf("numa%02d", nodeId))
 			for _, devInfo := range devInfos {
-				extra := fmt.Sprintf(" (%04x)", devInfo.DevClass())
+				dc := devInfo.DevClass()
+				extra := fmt.Sprintf(" (%04x)", dc)
 				if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && (sriovInfo.IsPhysFn || sriovInfo.IsVFn) {
 					if sriovInfo.IsPhysFn {
 						extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
@@ -52,14 +65,19 @@ func showPCIDevs(cmd *cobra.Command, args []string) error {
 						extra = " ???"
 					}
 				}
-				numaNode.Add(fmt.Sprintf("%s %04x:%04x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
+				if pdOpts.IsInterestingDevice(dc) {
+					numaNode.Add(fmt.Sprintf("%s %04x:%04x%s", devInfo.Address(), devInfo.Vendor(), devInfo.Device(), extra))
+				}
 			}
 		}
 		fmt.Println(sys.Print())
 	} else {
 		for nodeId, devInfos := range pciDevs.NUMAPCIDevices {
 			for _, devInfo := range devInfos {
-				fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), devInfo.DevClass(), devInfo.Vendor(), devInfo.Device(), nodeId)
+				dc := devInfo.DevClass()
+				if pdOpts.IsInterestingDevice(dc) {
+					fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), dc, devInfo.Vendor(), devInfo.Device(), nodeId)
+				}
 			}
 		}
 
@@ -75,5 +93,6 @@ func newPCIDevsCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 	show.Flags().BoolVarP(&pdOpts.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
+	show.Flags().BoolVarP(&pdOpts.networkOnly, "network-only", "N", false, "print only network devices.")
 	return show
 }
