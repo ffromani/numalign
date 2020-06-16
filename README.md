@@ -1,9 +1,13 @@
-# numalign - a simple tool to check resource alignment.
+# numalign - tooling to check NUMA resource alignment/positioning
 
-`numalign` tells you if a set of resources is aligned on the same NUMA node. That's it.
+`lsnt` reports information about NUMA locality of CPU and devices.
+
+`numalign` tells you if a set of resources is aligned on the same NUMA node.
+
+`sriovscan` finds all the SR-IOV (PFs and VFs) devices on the system and report infos about them.
 
 ## license
-numalign (C) 2020 Red Hat Inc and licensed under the Apache License v2
+(C) 2020 Red Hat Inc and licensed under the Apache License v2
 
 ## build
 just run
@@ -11,12 +15,22 @@ just run
 make
 ```
 
-## Container image
+## lsnt
+
+TBD
+
+### Example output
+
+TBD
+
+## numalign
+
+### Container image
 ```bash
 podman run -e NUMALIGN_DEBUG=1 quay.io/fromani/numalign:devel
 ```
 
-## Example output
+### Example output
 From a developer laptop:
 ```bash
 $ ./numalign 
@@ -67,3 +81,7 @@ STATUS ALIGNED=true
 NUMA NODE=0
 $
 ```
+
+## sriovscan
+
+TBD
