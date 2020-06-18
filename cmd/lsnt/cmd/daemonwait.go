@@ -29,9 +29,7 @@ type daemonwaitOpts struct {
 	healthFile string
 }
 
-var dwOpts daemonwaitOpts
-
-func waitForever(cmd *cobra.Command, args []string) error {
+func waitForever(dwOpts *daemonwaitOpts) error {
 	if dwOpts.healthFile != "" {
 		message := []byte("ok")
 		ioutil.WriteFile(dwOpts.healthFile, message, 0644) // intentionally ignore error
@@ -44,12 +42,15 @@ func waitForever(cmd *cobra.Command, args []string) error {
 }
 
 func newDaemonWaitCommand() *cobra.Command {
+	flags := &daemonwaitOpts{}
 	show := &cobra.Command{
 		Use:   "daemonwait",
 		Short: "wait forever, or until a UNIX signal (SIGINT, SIGTERM) arrives",
-		RunE:  waitForever,
-		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return waitForever(flags)
+		},
+		Args: cobra.NoArgs,
 	}
-	show.Flags().StringVarP(&dwOpts.healthFile, "health-file", "H", "", "health file full path. Use \"\" to disable.")
+	show.Flags().StringVarP(&flags.healthFile, "health-file", "H", "", "health file full path. Use \"\" to disable.")
 	return show
 }

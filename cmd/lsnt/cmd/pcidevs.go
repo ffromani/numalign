@@ -25,6 +25,10 @@ import (
 	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
 )
 
+const (
+	DevClassNetwork int64 = 0x0200
+)
+
 type pcidevOpts struct {
 	showTree     bool
 	networkOnly  bool
@@ -38,83 +42,84 @@ func (pd pcidevOpts) IsInterestingDevice(dc int64) bool {
 	return dc == DevClassNetwork
 }
 
-var pdOpts pcidevOpts
+func showPCIDevsTree(pdOpts *pcidevOpts, pciDevs *pcidev.PCIDevices) {
+	physFns := make(map[string]gotree.Tree)
+	sys := gotree.New(".")
+	for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
+		var numaNode gotree.Tree
+		if nodeID == pcidev.NumaNodeUnknown {
+			numaNode = sys.Add("UNKNOWN")
+		} else {
+			numaNode = sys.Add(fmt.Sprintf("numa%02d", nodeID))
+		}
 
-const (
-	DevClassNetwork int64 = 0x0200
-)
+		for _, devInfo := range devInfos {
+			dc := devInfo.DevClass()
+			parent := numaNode
+			addParent := false
 
-func showPCIDevs(cmd *cobra.Command, args []string) error {
+			extra := fmt.Sprintf(" (%04x)", dc)
+			if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && (sriovInfo.IsPhysFn || sriovInfo.IsVFn) {
+				if sriovInfo.IsPhysFn {
+					extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
+					addParent = pdOpts.showVFParent
+				} else if sriovInfo.IsVFn {
+					if pDev, ok := physFns[sriovInfo.ParentFn]; ok {
+						parent = pDev
+						extra = fmt.Sprintf(" vfn")
+					} else {
+						extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
+					}
+				} else {
+					extra = " ???"
+				}
+			}
+			if pdOpts.IsInterestingDevice(dc) {
+				addr := devInfo.Address()
+				phDev := parent.Add(fmt.Sprintf("%s %04x:%04x%s", addr, devInfo.Vendor(), devInfo.Device(), extra))
+				if addParent {
+					physFns[addr] = phDev
+				}
+			}
+		}
+	}
+	fmt.Println(sys.Print())
+}
+
+func showPCIDevs(pdOpts *pcidevOpts) error {
 	pciDevs, err := pcidev.NewPCIDevices("/sys")
 	if err != nil {
 		return err
 	}
 
 	if pdOpts.showTree {
-		physFns := make(map[string]gotree.Tree)
-		sys := gotree.New(".")
-		for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
-			var numaNode gotree.Tree
-			if nodeID == pcidev.NumaNodeUnknown {
-				numaNode = sys.Add("UNKNOWN")
-			} else {
-				numaNode = sys.Add(fmt.Sprintf("numa%02d", nodeID))
-			}
+		showPCIDevsTree(pdOpts, pciDevs)
+		return nil
+	}
 
-			for _, devInfo := range devInfos {
-				dc := devInfo.DevClass()
-				parent := numaNode
-				addParent := false
-
-				extra := fmt.Sprintf(" (%04x)", dc)
-				if sriovInfo, ok := devInfo.(pcidev.SRIOVDeviceInfo); ok && (sriovInfo.IsPhysFn || sriovInfo.IsVFn) {
-					if sriovInfo.IsPhysFn {
-						extra = fmt.Sprintf(" physfn numvfs=%v", sriovInfo.NumVFS)
-						addParent = pdOpts.showVFParent
-					} else if sriovInfo.IsVFn {
-						if pDev, ok := physFns[sriovInfo.ParentFn]; ok {
-							parent = pDev
-							extra = fmt.Sprintf(" vfn")
-						} else {
-							extra = fmt.Sprintf(" vfn parent=%s", sriovInfo.ParentFn)
-						}
-					} else {
-						extra = " ???"
-					}
-				}
-				if pdOpts.IsInterestingDevice(dc) {
-					addr := devInfo.Address()
-					phDev := parent.Add(fmt.Sprintf("%s %04x:%04x%s", addr, devInfo.Vendor(), devInfo.Device(), extra))
-					if addParent {
-						physFns[addr] = phDev
-					}
-				}
+	for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
+		for _, devInfo := range devInfos {
+			dc := devInfo.DevClass()
+			if pdOpts.IsInterestingDevice(dc) {
+				fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), dc, devInfo.Vendor(), devInfo.Device(), nodeID)
 			}
 		}
-		fmt.Println(sys.Print())
-	} else {
-		for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
-			for _, devInfo := range devInfos {
-				dc := devInfo.DevClass()
-				if pdOpts.IsInterestingDevice(dc) {
-					fmt.Printf("%s %04x: %04x:%04x (NUMA node %d)\n", devInfo.DevAddress(), dc, devInfo.Vendor(), devInfo.Device(), nodeID)
-				}
-			}
-		}
-
 	}
 	return nil
 }
 
 func newPCIDevsCommand() *cobra.Command {
+	flags := &pcidevOpts{}
 	show := &cobra.Command{
 		Use:   "pcidevs",
 		Short: "show PCI devices in the system",
-		RunE:  showPCIDevs,
-		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return showPCIDevs(flags)
+		},
+		Args: cobra.NoArgs,
 	}
-	show.Flags().BoolVarP(&pdOpts.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
-	show.Flags().BoolVarP(&pdOpts.networkOnly, "network-only", "N", false, "print only network devices.")
-	show.Flags().BoolVarP(&pdOpts.showVFParent, "show-vf-parent", "P", false, "move VFs under their parent PFs.")
+	show.Flags().BoolVarP(&flags.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
+	show.Flags().BoolVarP(&flags.networkOnly, "network-only", "N", false, "print only network devices.")
+	show.Flags().BoolVarP(&flags.showVFParent, "show-vf-parent", "P", false, "move VFs under their parent PFs.")
 	return show
 }
