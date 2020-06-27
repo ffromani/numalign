@@ -28,7 +28,11 @@ import (
 const (
 	// PathBusPCIDevices is the subpath which holds informations about the PCI(-express) devices
 	PathBusPCIDevices = "bus/pci/devices/"
-	NumaNodeUnknown   = -1
+	NUMANodeUnknown   = -1
+)
+
+const (
+	DevClassNetwork int64 = 0x0200
 )
 
 // PCIDeviceInfo represents the information about a single PCI(-express) device
@@ -47,6 +51,10 @@ type PCIDeviceInfo interface {
 	Vendor() int64
 	// Device is the PCI device identifier, as integer
 	Device() int64
+	// SysfsPath returns the path on sysfs of this device
+	SysfsPath() string
+	// NUMANode returns the NUMA node id on which this device is attached to
+	NUMANode() int
 	// TODO: driver
 }
 
@@ -55,25 +63,38 @@ type PCIDeviceInfoList []PCIDeviceInfo
 
 // PCIDevices reports the information about all the PCI(-express) devices found in the system
 type PCIDevices struct {
-	NUMAPCIDevices map[int]PCIDeviceInfoList
+	Items PCIDeviceInfoList
+}
+
+func (pd PCIDevices) PerNUMA() map[int]PCIDeviceInfoList {
+	numaNodePCIDevs := make(map[int]PCIDeviceInfoList)
+
+	for _, devInfo := range pd.Items {
+		nodeNum := devInfo.NUMANode()
+		pciDevs := numaNodePCIDevs[nodeNum]
+		pciDevs = append(pciDevs, devInfo)
+		numaNodePCIDevs[nodeNum] = pciDevs
+	}
+	return numaNodePCIDevs
 }
 
 // NewPCIDevices extracts the information about the PCI(-express) devices from a given sysfs-like path
 func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 	sysfsPath := filepath.Join(sysfs, PathBusPCIDevices)
 
-	numaNodePCIDevs := make(map[int]PCIDeviceInfoList)
+	var allPCIDevs []PCIDeviceInfo
 	entries, err := ioutil.ReadDir(sysfsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, entry := range entries {
+		devPath := filepath.Join(sysfsPath, entry.Name())
 		isPhysFn := false
 		isVFn := false
 		numVfs := 0
 		parentFn := ""
-		numvfsPath := filepath.Join(sysfsPath, entry.Name(), "sriov_numvfs")
+		numvfsPath := filepath.Join(devPath, "sriov_numvfs")
 		if _, err := os.Stat(numvfsPath); err == nil {
 			isPhysFn = true
 			numVfs, _ = readInt(numvfsPath)
@@ -81,7 +102,7 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 			// unexpected error. Bail out
 			return nil, err
 		}
-		physFnPath := filepath.Join(sysfsPath, entry.Name(), "physfn")
+		physFnPath := filepath.Join(devPath, "physfn")
 		if _, err := os.Stat(physFnPath); err == nil {
 			isVFn = true
 			if dest, err := os.Readlink(physFnPath); err == nil {
@@ -92,7 +113,6 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 			return nil, err
 		}
 
-		devPath := filepath.Join(sysfsPath, entry.Name())
 		nodeNum, err := readInt(filepath.Join(devPath, "numa_node"))
 		// nodeNum may be -1 (minus-one). This is bad, and likely a firmware bug, see:
 		// https://access.redhat.com/solutions/435313
@@ -110,23 +130,23 @@ func NewPCIDevices(sysfs string) (*PCIDevices, error) {
 			return nil, err
 		}
 
-		pciDevs := numaNodePCIDevs[nodeNum]
-		pciDevs = append(pciDevs, SRIOVDeviceInfo{
-			IsPhysFn: isPhysFn,
-			NumVFS:   numVfs,
-			IsVFn:    isVFn,
-			ParentFn: parentFn,
-			address:  entry.Name(),
-			numaNode: nodeNum,
-			devClass: (devClass >> 8), // pciutils lib/sysfs.c
-			vendor:   vendor,
-			device:   device,
-		})
-		numaNodePCIDevs[nodeNum] = pciDevs
+		devInfo := SRIOVDeviceInfo{
+			IsPhysFn:  isPhysFn,
+			NumVFS:    numVfs,
+			IsVFn:     isVFn,
+			ParentFn:  parentFn,
+			address:   entry.Name(),
+			numaNode:  nodeNum,
+			devClass:  (devClass >> 8), // pciutils lib/sysfs.c
+			vendor:    vendor,
+			device:    device,
+			sysfsPath: devPath,
+		}
+		allPCIDevs = append(allPCIDevs, devInfo)
 	}
 
 	return &PCIDevices{
-		NUMAPCIDevices: numaNodePCIDevs,
+		Items: allPCIDevs,
 	}, nil
 
 }
@@ -140,12 +160,23 @@ type SRIOVDeviceInfo struct {
 	// IsVFn is true if this device is a Virtual FunctioN
 	IsVFn bool
 	// ParentFn is the bus_id:device_id PCI(-express) address of the parent Physical Function, if IsVFn=true. Meaningless otherwise.
-	ParentFn string // only VFs
-	address  string
-	numaNode int
-	devClass int64
-	vendor   int64
-	device   int64
+	ParentFn  string // only VFs
+	address   string
+	numaNode  int
+	devClass  int64
+	vendor    int64
+	device    int64
+	sysfsPath string
+}
+
+// SysfsPath returns the path on sysfs of this device
+func (sdi SRIOVDeviceInfo) SysfsPath() string {
+	return sdi.sysfsPath
+}
+
+// NUMANode returns the NUMA node id on which this device is attached to
+func (sdi SRIOVDeviceInfo) NUMANode() int {
+	return sdi.numaNode
 }
 
 // Address is the FULL PCI address (bus_id:device_id) of the device, as string

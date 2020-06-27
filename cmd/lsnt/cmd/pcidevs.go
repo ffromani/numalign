@@ -25,29 +25,26 @@ import (
 	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
 )
 
-const (
-	DevClassNetwork int64 = 0x0200
-)
-
 type pcidevOpts struct {
 	showTree     bool
 	networkOnly  bool
 	showVFParent bool
+	sysfsRoot    string
 }
 
 func (pd pcidevOpts) IsInterestingDevice(dc int64) bool {
 	if !pd.networkOnly {
 		return true
 	}
-	return dc == DevClassNetwork
+	return dc == pcidev.DevClassNetwork
 }
 
 func showPCIDevsTree(pdOpts *pcidevOpts, pciDevs *pcidev.PCIDevices) {
 	physFns := make(map[string]gotree.Tree)
 	sys := gotree.New(".")
-	for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
+	for nodeID, devInfos := range pciDevs.PerNUMA() {
 		var numaNode gotree.Tree
-		if nodeID == pcidev.NumaNodeUnknown {
+		if nodeID == pcidev.NUMANodeUnknown {
 			numaNode = sys.Add("UNKNOWN")
 		} else {
 			numaNode = sys.Add(fmt.Sprintf("numa%02d", nodeID))
@@ -87,7 +84,7 @@ func showPCIDevsTree(pdOpts *pcidevOpts, pciDevs *pcidev.PCIDevices) {
 }
 
 func showPCIDevs(pdOpts *pcidevOpts) error {
-	pciDevs, err := pcidev.NewPCIDevices("/sys")
+	pciDevs, err := pcidev.NewPCIDevices(pdOpts.sysfsRoot)
 	if err != nil {
 		return err
 	}
@@ -97,7 +94,7 @@ func showPCIDevs(pdOpts *pcidevOpts) error {
 		return nil
 	}
 
-	for nodeID, devInfos := range pciDevs.NUMAPCIDevices {
+	for nodeID, devInfos := range pciDevs.PerNUMA() {
 		for _, devInfo := range devInfos {
 			dc := devInfo.DevClass()
 			if pdOpts.IsInterestingDevice(dc) {
@@ -118,6 +115,7 @@ func newPCIDevsCommand() *cobra.Command {
 		},
 		Args: cobra.NoArgs,
 	}
+	show.Flags().StringVarP(&flags.sysfsRoot, "sysfs", "S", "/sys", "sysfs mount point to use.")
 	show.Flags().BoolVarP(&flags.showTree, "show-tree", "T", false, "print per-NUMA device tree.")
 	show.Flags().BoolVarP(&flags.networkOnly, "network-only", "N", false, "print only network devices.")
 	show.Flags().BoolVarP(&flags.showVFParent, "show-vf-parent", "P", false, "move VFs under their parent PFs.")
