@@ -90,11 +90,11 @@ func main() {
 	}
 
 	if info.PFDev.NUMANode() != *numaNode {
-		fmt.Printf("echo %d > %s\n", filepath.Join(info.PFDev.SysfsPath(), "numa_node"))
+		fmt.Printf("echo %d > %s\n", *numaNode, filepath.Join(info.PFDev.SysfsPath(), "numa_node"))
 	}
 	for _, vfDev := range info.VFDevs {
 		if vfDev.NUMANode() != *numaNode {
-			fmt.Printf("echo %d > %s\n", filepath.Join(vfDev.SysfsPath(), "numa_node"))
+			fmt.Printf("echo %d > %s\n", *numaNode, filepath.Join(vfDev.SysfsPath(), "numa_node"))
 		}
 	}
 }
