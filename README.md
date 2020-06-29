@@ -6,6 +6,10 @@
 
 `sriovscan` finds all the SR-IOV (PFs and VFs) devices on the system and report infos about them.
 
+`sriovctl` is a helper tool to override (kernel allowing) the NUMA placement of SRIOV devices, in case of buggy firmware.
+
+`splitcpulist` parses a cpulist description and emits the list of all CPUs involved, to be used in shell scripts.
+
 ## license
 (C) 2020 Red Hat Inc and licensed under the Apache License v2
 
@@ -17,7 +21,7 @@ make
 
 ## lsnt
 
-TBD
+`lsnt` *L*i*S*t information regarding *N*UMA *T*opology, like CPU placement, PCI devices placement.
 
 ### Example output
 On a multi-NUMA system:
@@ -111,10 +115,7 @@ $ lsnt pcidevs -N -T -P
 
 ## numalign
 
-### Container image
-```bash
-podman run -e NUMALIGN_DEBUG=1 quay.io/fromani/numalign:devel
-```
+Simple NUMA Alignment check, to be used inside containers.
 
 ### Example output
 From a developer laptop:
@@ -170,4 +171,31 @@ $
 
 ## sriovscan
 
-TBD
+EXAMPLE TBD
+
+## sriovctl
+
+EXAMPLE TBD
+
+## splitcpulist
+
+```bash
+$ splitcpulist -c '0,2-4,7'
+0
+2
+3
+4
+7
+$ for CPU in $( splitcpulist -c '0,2-4,7' ); do echo "considering CPU=${CPU}"; done
+considering CPU=0
+considering CPU=2
+considering CPU=3
+considering CPU=4
+considering CPU=7
+$ echo "0-4" | ./_output/splitcpulist -f -
+0
+1
+2
+3
+4
+```
