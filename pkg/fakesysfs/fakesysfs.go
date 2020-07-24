@@ -7,11 +7,10 @@ import (
 
 type Tree interface {
 	Add(name string, attrs map[string]string) Tree
-	AddTree(tree Tree)
-	Items() []Tree
-	CreateAttrs() error
-	Create() error
 	Name() string
+	Items() []Tree
+	SetAttrs() error
+	Create() error
 }
 
 type Creator interface {
@@ -38,10 +37,6 @@ func (t *tree) Add(name string, attrs map[string]string) Tree {
 	return n
 }
 
-func (t *tree) AddTree(tree Tree) {
-	t.items = append(t.items, tree)
-}
-
 func (t *tree) Items() []Tree {
 	return t.items
 }
@@ -54,7 +49,7 @@ func (t *tree) Create() error {
 	return newCreator().Create(t)
 }
 
-func (t *tree) CreateAttrs() error {
+func (t *tree) SetAttrs() error {
 	if t.attrs == nil {
 		return nil
 	}
@@ -75,7 +70,7 @@ func newCreator() Creator {
 }
 
 func (c *creator) Create(t Tree) error {
-	if err := t.CreateAttrs(); err != nil {
+	if err := t.SetAttrs(); err != nil {
 		return err
 	}
 	return c.createItems(t.Items())
