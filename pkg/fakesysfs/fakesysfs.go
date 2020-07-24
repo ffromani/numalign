@@ -3,6 +3,7 @@ package fakesysfs
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 type Tree interface {
@@ -61,6 +62,18 @@ func (t *tree) SetAttrs() error {
 		}
 	}
 	return err
+}
+
+func MakeAttrs(attrs map[string]string) map[string]string {
+	resAttrs := make(map[string]string)
+	for key, value := range attrs {
+		if strings.HasSuffix(value, "\n") {
+			resAttrs[key] = value
+		} else {
+			resAttrs[key] = value + "\n"
+		}
+	}
+	return resAttrs
 }
 
 type creator struct{}
