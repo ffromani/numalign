@@ -1,4 +1,3 @@
 FROM alpine:3.9
-COPY numalign /bin/numalign
-COPY sriovscan /bin/sriovscan
+COPY _output /usr/local/bin
 ENTRYPOINT ["/bin/sh"]

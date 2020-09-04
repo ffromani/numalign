@@ -1,27 +1,45 @@
+RUNTIME ?= podman
+REPOOWNER ?= fromani
+IMAGENAME ?= numalign
+IMAGETAG ?= latest
+
+BUILDFLAGS=GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0
 
 all: dist
 
 outdir:
 	mkdir -p _output || :
 
+.PHONY: dist
 dist: binaries
 
+.PHONY: binaries
 binaries: numalign sriovscan lsnt splitcpulist sriovctl
 
 numalign: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/numalign ./cmd/numalign
+	$(BUILDFLAGS) go build -v -o _output/numalign ./cmd/numalign
 
 sriovscan: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/sriovscan ./cmd/sriovscan
+	$(BUILDFLAGS) go build -v -o _output/sriovscan ./cmd/sriovscan
 
 lsnt: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/lsnt ./cmd/lsnt
+	$(BUILDFLAGS) go build -v -o _output/lsnt ./cmd/lsnt
 
 splitcpulist: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/splitcpulist ./cmd/splitcpulist
+	$(BUILDFLAGS) go build -v -o _output/splitcpulist ./cmd/splitcpulist
 
 sriovctl: outdir
-	GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o _output/sriovctl ./cmd/sriovctl
+	$(BUILDFLAGS) go build -v -o _output/sriovctl ./cmd/sriovctl
 
 clean:
 	rm -rf _output
+
+.PHONY: image
+image: binaries
+	@echo "building image"
+	$(RUNTIME) build -f Dockerfile -t quay.io/$(REPOOWNER)/$(IMAGENAME):$(IMAGETAG) .
+
+.PHONY: push
+push: image
+	@echo "pushing image"
+	$(RUNTIME) push quay.io/$(REPOOWNER)/$(IMAGENAME):$(IMAGETAG)
