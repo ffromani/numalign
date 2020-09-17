@@ -2,6 +2,7 @@ package fakesysfs
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -14,6 +15,8 @@ type devData struct {
 }
 
 func TestPCIDevices(t *testing.T) {
+	DebugLog = log.Printf
+
 	base, err := ioutil.TempDir("/tmp", "fakesysfs")
 	if err != nil {
 		t.Errorf("error creating temp base dir: %v", err)
@@ -51,16 +54,18 @@ func TestPCIDevices(t *testing.T) {
 		t.Errorf("error setting up fakesysfs: %v", err)
 	}
 
-	checkPath(t, fakeDevs, filepath.Join(fs.Base(), "sys", "bus", "pci", "devices"))
-
-	if _, ok := os.LookupEnv("FAKESYS_TEST_KEEP_TREE"); ok {
-		t.Logf("found environment variable, keeping fake tree")
-	} else {
-		err = fs.Teardown()
-		if err != nil {
-			t.Errorf("error tearing down fakesysfs: %v", err)
+	defer func() {
+		if _, ok := os.LookupEnv("FAKESYS_TEST_KEEP_TREE"); ok {
+			t.Logf("found environment variable, keeping fake tree")
+		} else {
+			err = fs.Teardown()
+			if err != nil {
+				t.Errorf("error tearing down fakesysfs: %v", err)
+			}
 		}
-	}
+	}()
+
+	checkPath(t, fakeDevs, filepath.Join(fs.Base(), "sys", "bus", "pci", "devices"))
 }
 
 func checkPath(t *testing.T, fakeDevs []devData, subPath string) {

@@ -6,11 +6,20 @@ import (
 	"strings"
 )
 
+type DebugLogger func(string, ...interface{})
+
+func NullDebugLogger(fmt string, args ...interface{}) {
+	return
+}
+
+var DebugLog DebugLogger = NullDebugLogger
+
 type Tree interface {
 	Add(name string, attrs map[string]string) Tree
 	Name() string
 	Items() []Tree
 	SetAttrs() error
+	Attrs() map[string]string
 	Create() error
 }
 
@@ -50,12 +59,22 @@ func (t *tree) Create() error {
 	return newCreator().Create(t)
 }
 
+func (t *tree) Attrs() map[string]string {
+	res := make(map[string]string)
+	for key, val := range t.attrs {
+		res[key] = val
+	}
+	return res
+}
+
 func (t *tree) SetAttrs() error {
 	if t.attrs == nil {
+		DebugLog("%q attrs NONE", t.name)
 		return nil
 	}
 	var err error
 	for name, content := range t.attrs {
+		DebugLog("%q attrs %q", t.name, name)
 		err = ioutil.WriteFile(name, []byte(content), 0644)
 		if err != nil {
 			break
@@ -83,9 +102,11 @@ func newCreator() Creator {
 }
 
 func (c *creator) Create(t Tree) error {
+	DebugLog("%q attrs: %v", t.Name(), t.Attrs())
 	if err := t.SetAttrs(); err != nil {
 		return err
 	}
+	DebugLog("%q items: %v", t.Name(), t.Items())
 	return c.createItems(t.Items())
 }
 
@@ -121,6 +142,7 @@ func NewFakeSysfs(base string) (*FakeSysfs, error) {
 }
 
 func (fs *FakeSysfs) AddTree(entries ...string) Tree {
+	DebugLog("%q adding: %v", fs.base, entries)
 	pos := fs.root
 	for _, entry := range entries {
 		pos = pos.Add(entry, nil)
@@ -143,6 +165,7 @@ func (fs *FakeSysfs) Setup() error {
 	}
 	defer os.Chdir(oldWd)
 	os.Chdir(fs.base)
+	DebugLog("Setup(%q)", fs.base)
 	return fs.root.Create()
 }
 
