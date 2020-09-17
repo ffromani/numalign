@@ -53,9 +53,9 @@ func summary(cpuRes *cpus.CPUs) {
 	fmt.Fprintf(w, "Thread(s) per core:\t%s\n", summarizeCPUIdList(cpuRes.CoreCPUs))
 	fmt.Fprintf(w, "Core(s) per socket:\t%s\n", summarizeCPUIdList(cpuRes.PackageCPUs))
 	fmt.Fprintf(w, "Socket(s):\t%d\n", cpuRes.Packages)
-	fmt.Fprintf(w, "NUMA node(s):\t%d\n", cpuRes.NUMANodes)
-	for i := 0; i < cpuRes.NUMANodes; i++ {
-		fmt.Fprintf(w, "NUMA node%d CPU(s):\t%s\n", i, cpuset.Unparse(cpuRes.NUMANodeCPUs[i]))
+	fmt.Fprintf(w, "NUMA node(s):\t%d\n", len(cpuRes.NUMANodes))
+	for _, idx := range cpuRes.NUMANodes {
+		fmt.Fprintf(w, "NUMA node%d CPU(s):\t%s\n", idx, cpuset.Unparse(cpuRes.NUMANodeCPUs[idx]))
 	}
 	w.Flush()
 

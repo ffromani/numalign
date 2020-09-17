@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/fromanirh/cpuset"
@@ -43,8 +44,8 @@ type CPUs struct {
 	Online       CPUIdList
 	CoreCPUs     map[int]CPUIdList // aka thread_siblings
 	PackageCPUs  map[int]CPUIdList // aka core_siblings
-	Packages     int
-	NUMANodes    int
+	Packages     CPUIdList
+	NUMANodes    CPUIdList
 	NUMANodeCPUs map[int]CPUIdList
 }
 
@@ -61,11 +62,12 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 	}
 
 	sysfsNodePath := filepath.Join(sysfs, PathDevsSysNode)
-	nodes, err := countNUMANodes(sysfsNodePath)
+	nodes, err := readCPUList(filepath.Join(sysfsNodePath, "online"))
 	if err != nil {
 		return nil, err
 	}
 
+	var packageIds CPUIdList
 	packages := make(map[string]CPUIdList)
 	coreCPUs := make(map[int]CPUIdList)
 	packageCPUs := make(map[int]CPUIdList)
@@ -84,6 +86,12 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 			return nil, err
 		}
 
+		pkgId, err := strconv.Atoi(physPackageID)
+		if err != nil {
+			return nil, err
+		}
+		packageIds = append(packageIds, pkgId)
+
 		coreCPUs[cpuID] = cpuThreads
 		packageCPUs[cpuID] = cpuCores
 
@@ -93,7 +101,7 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 	}
 
 	numaNodeCPUs := make(map[int]CPUIdList)
-	for node := 0; node < nodes; node++ {
+	for _, node := range nodes {
 		cpus, err := readCPUList(filepath.Join(pathSysNodex(sysfsNodePath, node), "cpulist"))
 		if err != nil {
 			return nil, err
@@ -106,7 +114,7 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 		Online:       online,
 		CoreCPUs:     coreCPUs,
 		PackageCPUs:  packageCPUs,
-		Packages:     len(packages),
+		Packages:     packageIds,
 		NUMANodes:    nodes,
 		NUMANodeCPUs: numaNodeCPUs,
 	}, nil
@@ -138,19 +146,4 @@ func pathSysCPUxTopology(sysfsCPUPath string, cpuID int) string {
 
 func pathSysNodex(sysfsNodePath string, nodeID int) string {
 	return filepath.Join(sysfsNodePath, fmt.Sprintf("node%d", nodeID))
-}
-
-func countNUMANodes(nodepath string) (int, error) {
-	nodes := 0
-	entries, err := ioutil.ReadDir(nodepath)
-	if err != nil {
-		return nodes, err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), "node") {
-			nodes++
-		}
-	}
-	return nodes, nil
 }

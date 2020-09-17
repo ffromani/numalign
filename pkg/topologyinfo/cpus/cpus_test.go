@@ -29,7 +29,9 @@ func TestCPUsSingleNuma(t *testing.T) {
 
 	sysDevs := fs.AddTree("sys", "devices")
 	devSys := sysDevs.Add("system", nil)
-	devNode := devSys.Add("node", nil)
+	devNode := devSys.Add("node", map[string]string{
+		"online": "0",
+	})
 	devNode.Add("node0", map[string]string{
 		"cpulist": cpuList,
 	})
@@ -49,13 +51,23 @@ func TestCPUsSingleNuma(t *testing.T) {
 	if err != nil {
 		t.Errorf("error setting up fakesysfs: %v", err)
 	}
+	defer func() {
+		if _, ok := os.LookupEnv("TOPOLOGYINFO_TEST_KEEP_TREE"); ok {
+			t.Logf("found environment variable, keeping fake tree")
+		} else {
+			err = fs.Teardown()
+			if err != nil {
+				t.Errorf("error tearing down fakesysfs: %v", err)
+			}
+		}
+	}()
 
 	cpus, err := NewCPUs(filepath.Join(fs.Base(), "sys"))
 	if err != nil {
 		t.Errorf("error in NewCPU: %v", err)
 	}
-	if cpus.NUMANodes != 1 || len(cpus.NUMANodeCPUs) != 1 {
-		t.Errorf("NUMA Nodes miscount: expected %d detected %d/%d", 1, cpus.NUMANodes, len(cpus.NUMANodeCPUs))
+	if len(cpus.NUMANodes) != 1 || len(cpus.NUMANodeCPUs) != 1 {
+		t.Errorf("NUMA Nodes miscount: expected %d detected %d/%d", 1, len(cpus.NUMANodes), len(cpus.NUMANodeCPUs))
 	}
 
 	testingCpus := CPUIdList(allCpus)
@@ -67,14 +79,5 @@ func TestCPUsSingleNuma(t *testing.T) {
 	}
 	if !cmp.Equal(cpus.NUMANodeCPUs[0], testingCpus) {
 		t.Errorf("not all cpus on NUMA#0: %v vs %v", cpus.NUMANodeCPUs[0], testingCpus)
-	}
-
-	if _, ok := os.LookupEnv("TOPOLOGYINFO_TEST_KEEP_TREE"); ok {
-		t.Logf("found environment variable, keeping fake tree")
-	} else {
-		err = fs.Teardown()
-		if err != nil {
-			t.Errorf("error tearing down fakesysfs: %v", err)
-		}
 	}
 }
