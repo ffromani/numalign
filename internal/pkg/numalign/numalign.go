@@ -28,6 +28,8 @@ import (
 	"strings"
 
 	"github.com/fromanirh/cpuset"
+	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
+	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
 )
 
 const (
@@ -37,11 +39,11 @@ const (
 )
 
 func splitCPUList(cpuList string) ([]int, error) {
-	cpus, err := cpuset.Parse(cpuList)
+	ret, err := cpuset.Parse(cpuList)
 	if err != nil {
 		return nil, err
 	}
-	return cpus, nil
+	return ret, nil
 }
 
 type Resources struct {
@@ -144,7 +146,7 @@ func GetPCIDeviceToNumaNodeMap(sysBusPCIDir string, pciDevs []string) (map[strin
 		log.Printf("PCI: devices: none found - SKIP")
 		return make(map[string]int), nil
 	}
-	log.Printf("PCI: devices: %s", strings.Join(pciDevs, " - "))
+	log.Printf("PCI: devices: detected  %s", strings.Join(pciDevs, " - "))
 
 	NUMAPerDev, err := GetPCIDeviceNUMANode(sysBusPCIDir, pciDevs)
 	if err != nil {
@@ -187,19 +189,19 @@ func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 		if err != nil {
 			return nil, err
 		}
-		cpus, err := cpuset.Parse(strings.TrimSpace(string(content)))
+		cpuSet, err := cpuset.Parse(strings.TrimSpace(string(content)))
 		if err != nil {
 			return nil, err
 		}
-		cpusPerNUMA[nodeNum] = cpus
+		cpusPerNUMA[nodeNum] = cpuSet
 	}
 	return cpusPerNUMA, nil
 }
 
 func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	CPUToNUMANode := make(map[int]int)
-	for nodeNum, cpus := range cpusPerNUMA {
-		for _, cpu := range cpus {
+	for nodeNum, cpuSet := range cpusPerNUMA {
+		for _, cpu := range cpuSet {
 			CPUToNUMANode[cpu] = nodeNum
 		}
 	}
@@ -208,6 +210,25 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 
 func Execute() int {
 	var err error
+
+	cpuRes, err := cpus.NewCPUs("/sys")
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for _, idx := range cpuRes.NUMANodes {
+		log.Printf("CPU: NUMA cell %02d: %s\n", idx, cpuset.Unparse(cpuRes.NUMANodeCPUs[idx]))
+	}
+
+	pciDevs := GetPCIDevicesFromEnv(os.Environ())
+	pciInfos, err := pcidev.NewPCIDevices("/sys")
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for _, pciDev := range pciDevs {
+		if pciInfo, found := pciInfos.FindByAddress(pciDev); found {
+			log.Printf("PCI: %v", pciInfo)
+		}
+	}
 
 	var pidStrings []string
 	if len(os.Args) > 1 {
@@ -239,9 +260,7 @@ func Execute() int {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	log.Printf("CPU: NUMA node by id: %v", CPUToNUMANode)
 
-	pciDevs := GetPCIDevicesFromEnv(os.Environ())
 	NUMAPerDev, err := GetPCIDeviceToNumaNodeMap(SysBusPCIDevicesDir, pciDevs)
 	if err != nil {
 		log.Fatalf("%v", err)

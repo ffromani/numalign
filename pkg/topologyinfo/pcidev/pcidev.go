@@ -66,6 +66,15 @@ type PCIDevices struct {
 	Items PCIDeviceInfoList
 }
 
+func (pd PCIDevices) FindByAddress(addr string) (PCIDeviceInfo, bool) {
+	for _, devInfo := range pd.Items {
+		if devInfo.Address() == addr {
+			return devInfo, true
+		}
+	}
+	return SRIOVDeviceInfo{}, false
+}
+
 func (pd PCIDevices) PerNUMA() map[int]PCIDeviceInfoList {
 	numaNodePCIDevs := make(map[int]PCIDeviceInfoList)
 
