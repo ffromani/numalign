@@ -209,10 +209,6 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 func Execute() int {
 	var err error
 
-	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
-		log.SetOutput(ioutil.Discard)
-	}
-
 	var pidStrings []string
 	if len(os.Args) > 1 {
 		pidStrings = append(pidStrings, os.Args[1:]...)

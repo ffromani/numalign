@@ -17,6 +17,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -27,21 +28,26 @@ import (
 
 func main() {
 	var err error
-	needSleep := false
 	hours := 0 // default
+	var sleepTime time.Duration
+
+	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
+		log.SetOutput(ioutil.Discard)
+	}
+
 	val := os.Getenv("NUMALIGN_SLEEP_HOURS")
 	if val != "" {
 		hours, err = strconv.Atoi(val)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		needSleep = true
+		sleepTime = time.Duration(hours) * time.Hour
 	}
+
+	log.Printf("will sleep for %v after the check", sleepTime)
 
 	ret := numalign.Execute()
 
-	if needSleep {
-		time.Sleep(time.Duration(hours) * time.Hour)
-	}
+	time.Sleep(sleepTime)
 	os.Exit(ret)
 }
