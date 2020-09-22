@@ -206,7 +206,7 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	return CPUToNUMANode
 }
 
-func Execute() {
+func Execute() int {
 	var err error
 
 	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
@@ -257,10 +257,11 @@ func Execute() {
 	}
 	nodeNum, aligned := R.CheckAlignment()
 	fmt.Printf("STATUS ALIGNED=%v\n", aligned)
-	if aligned {
-		fmt.Printf("NUMA NODE=%v\n", nodeNum)
-	} else {
+	if !aligned {
 		fmt.Printf("%s", R.String())
-		os.Exit(99)
+		return 1
 	}
+
+	fmt.Printf("NUMA NODE=%v\n", nodeNum)
+	return 0
 }

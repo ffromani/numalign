@@ -27,6 +27,7 @@ import (
 
 func main() {
 	var err error
+	needSleep := false
 	hours := 0 // default
 	val := os.Getenv("NUMALIGN_SLEEP_HOURS")
 	if val != "" {
@@ -34,8 +35,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
+		needSleep = true
 	}
 
-	numalign.Execute()
-	time.Sleep(time.Duration(hours) * time.Hour)
+	ret := numalign.Execute()
+
+	if needSleep {
+		time.Sleep(time.Duration(hours) * time.Hour)
+	}
+	os.Exit(ret)
 }
