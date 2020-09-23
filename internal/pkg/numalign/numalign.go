@@ -73,11 +73,15 @@ func (R *Resources) MakeValidationScript() string {
 	// TODO remove duplicate paths
 	var buf strings.Builder
 	buf.WriteString("#!/bin/sh -x\n")
+	buf.WriteString("echo \"checking which CPUs are allocated to the the container:\n\"")
 	buf.WriteString("grep Cpus_allowed_list /proc/self/status\n")
+	buf.WriteString("echo \"checking which SRIOV VFs are allocated to the container:\n\"")
 	buf.WriteString("env | grep PCIDEVICE_OPENSHIFT_IO\n")
+	buf.WriteString("echo \"checking the NUMA cell of the CPUs allocated to the container:\n\"")
 	for cpuID := range R.CPUToNUMANode {
 		buf.WriteString(fmt.Sprintf("ls -ld /sys/devices/system/cpu/cpu%d/node*\n", cpuID))
 	}
+	buf.WriteString("echo \"checking the NUMA cell of the SRIOV VFs allocated to the container:\n\"")
 	for pciDev := range R.PCIDevsToNUMANode {
 		buf.WriteString(fmt.Sprintf("cat %s\n", filepath.Join(SysBusPCIDevicesDir, pciDev, "numa_node")))
 	}
