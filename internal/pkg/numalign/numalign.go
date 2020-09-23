@@ -69,6 +69,22 @@ func (R *Resources) CheckAlignment() (int, bool) {
 	return nodeNum, true
 }
 
+func (R *Resources) MakeValidationScript() string {
+	// TODO remove duplicate paths
+	var buf strings.Builder
+	buf.WriteString("#!/bin/sh -x\n")
+	buf.WriteString("grep Cpus_allowed_list /proc/self/status\n")
+	buf.WriteString("env | grep PCIDEVICE_OPENSHIFT_IO\n")
+	for cpuID := range R.CPUToNUMANode {
+		buf.WriteString(fmt.Sprintf("ls -ld /sys/devices/system/cpu/cpu%d/node*\n", cpuID))
+	}
+	for pciDev := range R.PCIDevsToNUMANode {
+		buf.WriteString(fmt.Sprintf("cat %s\n", filepath.Join(SysBusPCIDevicesDir, pciDev, "numa_node")))
+	}
+	return buf.String()
+
+}
+
 func (R *Resources) String() string {
 	var b strings.Builder
 	// To store the keys in slice in sorted order
@@ -208,12 +224,12 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	return CPUToNUMANode
 }
 
-func Execute() int {
+func NewResources() (*Resources, error) {
 	var err error
 
 	cpuRes, err := cpus.NewCPUs("/sys")
 	if err != nil {
-		log.Fatalf("%v", err)
+		return nil, err
 	}
 	for _, idx := range cpuRes.NUMANodes {
 		log.Printf("CPU: NUMA cell %02d: %s\n", idx, cpuset.Unparse(cpuRes.NUMANodeCPUs[idx]))
@@ -222,7 +238,7 @@ func Execute() int {
 	pciDevs := GetPCIDevicesFromEnv(os.Environ())
 	pciInfos, err := pcidev.NewPCIDevices("/sys")
 	if err != nil {
-		log.Fatalf("%v", err)
+		return nil, err
 	}
 	for _, pciDev := range pciDevs {
 		if pciInfo, found := pciInfos.FindByAddress(pciDev); found {
@@ -240,14 +256,14 @@ func Execute() int {
 	var refCpuIDs []int
 	refCpuIDs, err = GetAllowedCPUList(filepath.Join("/proc", pidStrings[0], "status"))
 	if err != nil {
-		log.Fatalf("%v", err)
+		return nil, err
 	}
 	log.Printf("CPU: allowed for %q: %v", pidStrings[0], refCpuIDs)
 
 	for _, pidString := range pidStrings[1:] {
 		cpuIDs, err := GetAllowedCPUList(filepath.Join("/proc", pidString, "status"))
 		if err != nil {
-			log.Fatalf("%v", err)
+			return nil, err
 		}
 		log.Printf("CPU: allowed for %q: %v", pidString, cpuIDs)
 
@@ -258,18 +274,22 @@ func Execute() int {
 
 	CPUToNUMANode, err := GetCPUToNUMANodeMap(SysDevicesSystemNodeDir, refCpuIDs)
 	if err != nil {
-		log.Fatalf("%v", err)
+		return nil, err
 	}
 
 	NUMAPerDev, err := GetPCIDeviceToNumaNodeMap(SysBusPCIDevicesDir, pciDevs)
 	if err != nil {
-		log.Fatalf("%v", err)
+		return nil, err
 	}
 
-	R := Resources{
+	return &Resources{
 		CPUToNUMANode:     CPUToNUMANode,
 		PCIDevsToNUMANode: NUMAPerDev,
-	}
+	}, nil
+
+}
+
+func Validate(R *Resources) int {
 	nodeNum, aligned := R.CheckAlignment()
 	fmt.Printf("STATUS ALIGNED=%v\n", aligned)
 	if !aligned {
@@ -279,4 +299,12 @@ func Execute() int {
 
 	fmt.Printf("NUMA NODE=%v\n", nodeNum)
 	return 0
+}
+
+func Execute() int {
+	R, err := NewResources()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	return Validate(R)
 }

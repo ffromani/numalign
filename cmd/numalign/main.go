@@ -27,26 +27,37 @@ import (
 )
 
 func main() {
-	var err error
-	hours := 0 // default
+	var val string
 	var sleepTime time.Duration
 
 	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	val := os.Getenv("NUMALIGN_SLEEP_HOURS")
+	val = os.Getenv("NUMALIGN_SLEEP_HOURS")
 	if val != "" {
-		hours, err = strconv.Atoi(val)
+		hours, err := strconv.Atoi(val)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
 		sleepTime = time.Duration(hours) * time.Hour
 	}
 
-	log.Printf("will sleep for %v after the check", sleepTime)
+	log.Printf("SYS: sleep for %v after the check", sleepTime)
 
-	ret := numalign.Execute()
+	R, err := numalign.NewResources()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	ret := numalign.Validate(R)
+
+	if val = os.Getenv("NUMALIGN_VALIDATION_SCRIPT"); val != "" {
+		code := []byte(R.MakeValidationScript())
+		err := ioutil.WriteFile(val, code, 0755)
+		if err != nil {
+			log.Printf("SYS: validation script creation failed: %v", err)
+		}
+	}
 
 	time.Sleep(sleepTime)
 	os.Exit(ret)
