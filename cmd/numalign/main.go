@@ -17,6 +17,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,6 +34,7 @@ func main() {
 
 	var sleepHoursParam = flag.StringP("sleep-hours", "S", "", "sleep hours once done.")
 	var scriptPathParam = flag.StringP("script-path", "P", "", "save test script to this path.")
+	var jsonOutput = flag.BoolP("json", "J", false, "output in JSON")
 	flag.Parse()
 
 	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
@@ -59,7 +61,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	ret := numalign.Validate(R)
+
+	rc := -1
+	res := R.CheckAlignment()
+	if res.Aligned {
+		rc = 0
+	}
+	if *jsonOutput {
+		fmt.Printf("%s", res.JSON())
+	} else {
+		fmt.Printf("%s", res.Text())
+		if !res.Aligned {
+			fmt.Printf("%s\n", R.String())
+		}
+	}
 
 	scriptPath := *scriptPathParam
 	if scriptPath == "" {
@@ -75,5 +90,5 @@ func main() {
 	}
 
 	time.Sleep(sleepTime)
-	os.Exit(ret)
+	os.Exit(rc)
 }

@@ -17,6 +17,7 @@
 package numalign
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -51,22 +52,50 @@ type Resources struct {
 	PCIDevsToNUMANode map[string]int
 }
 
-func (R *Resources) CheckAlignment() (int, bool) {
-	nodeNum := -1
+type Result struct {
+	Aligned    bool `json:"aligned"`
+	NUMACellID int  `json:"numacellid"`
+}
+
+func (re Result) Text() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "STATUS ALIGNED=%v\n", re.Aligned)
+	fmt.Fprintf(&b, "NUMA NODE=%v\n", re.NUMACellID)
+	return b.String()
+}
+
+func (re Result) JSON() string {
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	enc.Encode(re)
+	return b.String()
+}
+
+func (R *Resources) CheckAlignment() Result {
+	numacellID := -1
 	for _, cpuNode := range R.CPUToNUMANode {
-		if nodeNum == -1 {
-			nodeNum = cpuNode
-		} else if nodeNum != cpuNode {
-			return -1, false
+		if numacellID == -1 {
+			numacellID = cpuNode
+		} else if numacellID != cpuNode {
+			return Result{
+				Aligned:    false,
+				NUMACellID: -1,
+			}
 		}
 	}
 	for _, devNode := range R.PCIDevsToNUMANode {
 		// TODO: explain -1
-		if devNode != -1 && nodeNum != devNode {
-			return -1, false
+		if devNode != -1 && numacellID != devNode {
+			return Result{
+				Aligned:    false,
+				NUMACellID: -1,
+			}
 		}
 	}
-	return nodeNum, true
+	return Result{
+		Aligned:    true,
+		NUMACellID: numacellID,
+	}
 }
 
 func (R *Resources) MakeValidationScript() string {
@@ -97,8 +126,8 @@ func (R *Resources) String() string {
 	}
 	sort.Ints(cpuKeys)
 	for _, k := range cpuKeys {
-		nodeNum := R.CPUToNUMANode[k]
-		b.WriteString(fmt.Sprintf("CPU cpu#%03d=%02d\n", k, nodeNum))
+		numacellID := R.CPUToNUMANode[k]
+		b.WriteString(fmt.Sprintf("CPU cpu#%03d=%02d\n", k, numacellID))
 	}
 	var pciKeys []string
 	for pk := range R.PCIDevsToNUMANode {
@@ -106,8 +135,8 @@ func (R *Resources) String() string {
 	}
 	sort.Strings(pciKeys)
 	for _, k := range pciKeys {
-		nodeNum := R.PCIDevsToNUMANode[k]
-		b.WriteString(fmt.Sprintf("PCI %s=%02d\n", k, nodeNum))
+		numacellID := R.PCIDevsToNUMANode[k]
+		b.WriteString(fmt.Sprintf("PCI %s=%02d\n", k, numacellID))
 	}
 	return b.String()
 }
@@ -181,11 +210,11 @@ func GetPCIDeviceNUMANode(sysPCIDir string, devs []string) (map[string]int, erro
 		if err != nil {
 			return nil, err
 		}
-		nodeNum, err := strconv.Atoi(strings.TrimSpace(string(content)))
+		numacellID, err := strconv.Atoi(strings.TrimSpace(string(content)))
 		if err != nil {
 			return nil, err
 		}
-		NUMAPerDev[dev] = nodeNum
+		NUMAPerDev[dev] = numacellID
 	}
 	return NUMAPerDev, nil
 }
@@ -199,7 +228,7 @@ func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 	cpusPerNUMA := make(map[int][]int)
 	for _, node := range nodes {
 		_, nodeID := filepath.Split(node)
-		nodeNum, err := strconv.Atoi(strings.TrimSpace(nodeID[4:]))
+		numacellID, err := strconv.Atoi(strings.TrimSpace(nodeID[4:]))
 		if err != nil {
 			return nil, err
 		}
@@ -212,16 +241,16 @@ func GetCPUsPerNUMANode(sysfsdir string) (map[int][]int, error) {
 		if err != nil {
 			return nil, err
 		}
-		cpusPerNUMA[nodeNum] = cpuSet
+		cpusPerNUMA[numacellID] = cpuSet
 	}
 	return cpusPerNUMA, nil
 }
 
 func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	CPUToNUMANode := make(map[int]int)
-	for nodeNum, cpuSet := range cpusPerNUMA {
+	for numacellID, cpuSet := range cpusPerNUMA {
 		for _, cpu := range cpuSet {
-			CPUToNUMANode[cpu] = nodeNum
+			CPUToNUMANode[cpu] = numacellID
 		}
 	}
 	return CPUToNUMANode
@@ -290,16 +319,4 @@ func NewResources(pids []string) (*Resources, error) {
 		PCIDevsToNUMANode: NUMAPerDev,
 	}, nil
 
-}
-
-func Validate(R *Resources) int {
-	nodeNum, aligned := R.CheckAlignment()
-	fmt.Printf("STATUS ALIGNED=%v\n", aligned)
-	if !aligned {
-		fmt.Printf("%s", R.String())
-		return 1
-	}
-
-	fmt.Printf("NUMA NODE=%v\n", nodeNum)
-	return 0
 }
