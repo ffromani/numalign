@@ -23,37 +23,52 @@ import (
 	"strconv"
 	"time"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/fromanirh/numalign/internal/pkg/numalign"
 )
 
 func main() {
-	var val string
 	var sleepTime time.Duration
+
+	var sleepHoursParam = flag.StringP("sleep-hours", "S", "", "sleep hours once done.")
+	var scriptPathParam = flag.StringP("script-path", "P", "", "save test script to this path.")
+	flag.Parse()
 
 	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	val = os.Getenv("NUMALIGN_SLEEP_HOURS")
-	if val != "" {
-		hours, err := strconv.Atoi(val)
+	sleepHours := *sleepHoursParam
+	if sleepHours == "" {
+		os.Getenv("NUMALIGN_SLEEP_HOURS")
+	}
+	if sleepHours != "" {
+		hours, err := strconv.Atoi(sleepHours)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		sleepTime = time.Duration(hours) * time.Hour
+		if hours > 0 {
+			sleepTime = time.Duration(hours) * time.Hour
+		}
 	}
 
 	log.Printf("SYS: sleep for %v after the check", sleepTime)
 
-	R, err := numalign.NewResources()
+	R, err := numalign.NewResources(flag.Args())
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 	ret := numalign.Validate(R)
 
-	if val = os.Getenv("NUMALIGN_VALIDATION_SCRIPT"); val != "" {
+	scriptPath := *scriptPathParam
+	if scriptPath == "" {
+		scriptPath = os.Getenv("NUMALIGN_VALIDATION_SCRIPT")
+	}
+
+	if scriptPath != "" {
 		code := []byte(R.MakeValidationScript())
-		err := ioutil.WriteFile(val, code, 0755)
+		err := ioutil.WriteFile(scriptPath, code, 0755)
 		if err != nil {
 			log.Printf("SYS: validation script creation failed: %v", err)
 		}

@@ -227,7 +227,7 @@ func GetCPUNUMANodes(cpusPerNUMA map[int][]int) map[int]int {
 	return CPUToNUMANode
 }
 
-func NewResources() (*Resources, error) {
+func NewResources(pids []string) (*Resources, error) {
 	var err error
 
 	cpuRes, err := cpus.NewCPUs("/sys")
@@ -250,8 +250,8 @@ func NewResources() (*Resources, error) {
 	}
 
 	var pidStrings []string
-	if len(os.Args) > 1 {
-		pidStrings = append(pidStrings, os.Args[1:]...)
+	if len(pids) > 1 {
+		pidStrings = append(pidStrings, pids...)
 	} else {
 		pidStrings = append(pidStrings, "self")
 	}
@@ -302,12 +302,4 @@ func Validate(R *Resources) int {
 
 	fmt.Printf("NUMA NODE=%v\n", nodeNum)
 	return 0
-}
-
-func Execute() int {
-	R, err := NewResources()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-	return Validate(R)
 }
