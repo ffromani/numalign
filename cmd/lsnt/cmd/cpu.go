@@ -17,56 +17,22 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fromanirh/cpuset"
 	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
 )
 
-func summarizeCPUIdList(data map[int]cpus.CPUIdList) string {
-	ref := 0
-	var items []string
-	for cpuID, cpuList := range data {
-		cur := len(cpuList)
-		if ref == 0 {
-			ref = cur
-		} else if ref != cur {
-			items = append(items, fmt.Sprintf("core%d=%d", cpuID, cur))
-		}
-	}
-	if len(items) > 0 {
-		return strings.Join(items, ",")
-	}
-	return fmt.Sprintf("%d", ref)
-}
-
-func summary(cpuRes *cpus.CPUs) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	fmt.Fprintf(w, "CPU(s):\t%d\n", len(cpuRes.Present))
-	fmt.Fprintf(w, "Present CPU(s) list:\t%s\n", cpuset.Unparse(cpuRes.Present))
-	fmt.Fprintf(w, "On-line CPU(s) list:\t%s\n", cpuset.Unparse(cpuRes.Online))
-	fmt.Fprintf(w, "Thread(s) per core:\t%s\n", summarizeCPUIdList(cpuRes.CoreCPUs))
-	fmt.Fprintf(w, "Core(s) per socket:\t%s\n", summarizeCPUIdList(cpuRes.PackageCPUs))
-	fmt.Fprintf(w, "Socket(s):\t%d\n", cpuRes.Packages)
-	fmt.Fprintf(w, "NUMA node(s):\t%d\n", len(cpuRes.NUMANodes))
-	for _, idx := range cpuRes.NUMANodes {
-		fmt.Fprintf(w, "NUMA node%d CPU(s):\t%s\n", idx, cpuset.Unparse(cpuRes.NUMANodeCPUs[idx]))
-	}
-	w.Flush()
-
-}
-
 func showCPU(cmd *cobra.Command, args []string) error {
-	cpuRes, err := cpus.NewCPUs(opts.sysFSRoot)
+	cpuInfos, err := cpus.NewCPUs(opts.sysFSRoot)
 	if err != nil {
 		return err
 	}
-	summary(cpuRes)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	cpus.MakeSummary(cpuInfos, w)
+	w.Flush()
 	return nil
 }
 
