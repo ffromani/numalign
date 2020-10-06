@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,7 @@ func main() {
 		flag.PrintDefaults()
 	}
 	var procfsRoot = flag.StringP("procfs", "P", "/proc", "procfs mount point to use.")
+	var checkEffective = flag.BoolP("effective-affinity", "E", false, "check effective affinity.")
 	flag.Parse()
 
 	args := flag.Args()
@@ -52,35 +54,66 @@ func main() {
 	irqRoot := filepath.Join(*procfsRoot, "irq")
 	var irqViolations []int
 
-	err = filepath.Walk(irqRoot, func(path string, info os.FileInfo, err error) error {
+	files, err := ioutil.ReadDir(irqRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading %q: %v", irqRoot, err)
+		os.Exit(1)
+	}
+
+	var irqs []int
+	for _, file := range files {
+		irq, err := strconv.Atoi(file.Name())
 		if err != nil {
-			return err
+			continue // just skip not-irq-looking dirs
 		}
-		_, file := filepath.Split(path)
-		irq, convErr := strconv.Atoi(file)
-		if convErr != nil {
-			return nil // just skip not-irq-looking dirs
+		irqs = append(irqs, irq)
+	}
+
+	sort.Ints(irqs)
+
+	affinityListFile := "smp_affinity_list"
+	if *checkEffective {
+		affinityListFile = "effective_affinity_list"
+	}
+
+	for _, irq := range irqs {
+		irqDir := filepath.Join(irqRoot, fmt.Sprintf("%d", irq))
+
+		irqCpuList, err := ioutil.ReadFile(filepath.Join(irqDir, affinityListFile))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading %q for IRQ %d: %v\n", affinityListFile, irq, err)
+			continue // keep running
 		}
 
-		irqCpuList, readErr := ioutil.ReadFile(filepath.Join(path, "smp_affinity_list"))
-		if readErr != nil {
-			fmt.Fprintf(os.Stderr, "error reading smp_affinity_list for IRQ %d: %v\n", irq, readErr)
-			return nil // keep running
-		}
-
-		irqCpus, parseErr := cpuset.Parse(strings.TrimSpace(string(irqCpuList)))
-
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error parsing smp_affinity_list for IRQ %d: %v\n", irq, parseErr)
-			return nil // keep running
+		irqCpus, err := cpuset.Parse(strings.TrimSpace(string(irqCpuList)))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing %q for IRQ %d: %v\n", affinityListFile, irq, err)
+			continue // keep running
 		}
 
 		cpus := irqCpus.Intersection(isolCpus)
 		if cpus.Size() != 0 {
-			fmt.Printf("IRQ %3d: can run on %v\n", irq, cpus.ToSlice())
+			source := findSourceForIRQ(*procfsRoot, irq)
+			fmt.Printf("IRQ %3d [%24s]: can run on %v\n", irq, source, cpus.ToSlice())
 			irqViolations = append(irqViolations, irq)
 		}
+	}
 
-		return nil
-	})
+	if len(irqViolations) > 0 {
+		os.Exit(1)
+	}
+}
+
+func findSourceForIRQ(procfs string, irq int) string {
+	irqDir := filepath.Join(procfs, "irq", fmt.Sprintf("%d", irq))
+	files, err := ioutil.ReadDir(irqDir)
+	if err != nil {
+		return "MISSING"
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			return file.Name()
+		}
+	}
+	return ""
 }
