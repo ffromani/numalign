@@ -27,28 +27,43 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"github.com/fromanirh/cpuset"
+	k8scpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+
+	"github.com/fromanirh/numalign/pkg/softirqs"
 )
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] cpulist\n", filepath.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] [cpulist]\n", filepath.Base(os.Args[0]))
 		flag.PrintDefaults()
 	}
 	var procfsRoot = flag.StringP("procfs", "P", "/proc", "procfs mount point to use.")
 	var checkEffective = flag.BoolP("effective-affinity", "E", false, "check effective affinity.")
+	var checkSoftirqs = flag.BoolP("softirqs", "S", false, "check softirqs counters.")
 	flag.Parse()
 
+	isolCpuList := "0-65535" // "everything"
 	args := flag.Args()
-	if len(args) != 1 {
-		flag.Usage()
+	if len(args) == 1 {
+		isolCpuList = args[0]
+	}
+
+	isolCpus, err := k8scpuset.Parse(isolCpuList)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing %q: %v", isolCpuList, err)
 		os.Exit(1)
 	}
 
-	isolCpus, err := cpuset.Parse(args[0])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing %q: %v", args[0], err)
-		os.Exit(1)
+	if *checkSoftirqs {
+		info, err := readSoftirqInfo(*procfsRoot)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error parsing softirqs from %q: %v", *procfsRoot, err)
+			os.Exit(1)
+		}
+
+		dumpSoftirqInfo(info, isolCpus)
+		os.Exit(0)
 	}
 
 	irqRoot := filepath.Join(*procfsRoot, "irq")
@@ -85,7 +100,7 @@ func main() {
 			continue // keep running
 		}
 
-		irqCpus, err := cpuset.Parse(strings.TrimSpace(string(irqCpuList)))
+		irqCpus, err := k8scpuset.Parse(strings.TrimSpace(string(irqCpuList)))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error parsing %q for IRQ %d: %v\n", affinityListFile, irq, err)
 			continue // keep running
@@ -116,4 +131,28 @@ func findSourceForIRQ(procfs string, irq int) string {
 		}
 	}
 	return ""
+}
+
+func readSoftirqInfo(procfs string) (*softirqs.Info, error) {
+	src, err := os.Open(filepath.Join(procfs, "softirqs"))
+	if err != nil {
+		return nil, err
+	}
+	defer src.Close()
+	return softirqs.ReadInfo(src)
+}
+
+func dumpSoftirqInfo(info *softirqs.Info, cpus k8scpuset.CPUSet) {
+	keys := softirqs.Names()
+	for _, key := range keys {
+		counters := info.Counters[key]
+		cb := k8scpuset.NewBuilder()
+		for idx, counter := range counters {
+			if counter > 0 {
+				cb.Add(idx)
+			}
+		}
+		usedCPUs := cpus.Intersection(cb.Result())
+		fmt.Printf("%8s = %s\n", key, cpuset.Unparse(usedCPUs.ToSlice()))
+	}
 }
