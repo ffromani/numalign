@@ -14,7 +14,7 @@ outdir:
 dist: binaries
 
 .PHONY: binaries
-binaries: numalign sriovscan lsnt splitcpulist sriovctl irqcheck
+binaries: numalign sriovscan lsnt splitcpulist sriovctl irqcheck pagrep
 
 numalign: outdir
 	$(BUILDFLAGS) go build -v -o _output/numalign ./cmd/numalign
@@ -33,6 +33,9 @@ sriovctl: outdir
 
 irqcheck: outdir
 	$(BUILDFLAGS) go build -v -o _output/irqcheck ./cmd/irqcheck
+
+pagrep: outdir
+	$(BUILDFLAGS) go build -v -o _output/pagrep ./cmd/pagrep
 
 clean:
 	rm -rf _output
