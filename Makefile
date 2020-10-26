@@ -3,8 +3,6 @@ REPOOWNER ?= fromani
 IMAGENAME ?= numalign
 IMAGETAG ?= latest
 
-BUILDFLAGS=GO111MODULE=on GOPROXY=off GOFLAGS=-mod=vendor GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-
 all: dist
 
 outdir:
@@ -14,28 +12,9 @@ outdir:
 dist: binaries
 
 .PHONY: binaries
-binaries: numalign sriovscan lsnt splitcpulist sriovctl irqcheck pagrep
-
-numalign: outdir
-	$(BUILDFLAGS) go build -v -o _output/numalign ./cmd/numalign
-
-sriovscan: outdir
-	$(BUILDFLAGS) go build -v -o _output/sriovscan ./cmd/sriovscan
-
-lsnt: outdir
-	$(BUILDFLAGS) go build -v -o _output/lsnt ./cmd/lsnt
-
-splitcpulist: outdir
-	$(BUILDFLAGS) go build -v -o _output/splitcpulist ./cmd/splitcpulist
-
-sriovctl: outdir
-	$(BUILDFLAGS) go build -v -o _output/sriovctl ./cmd/sriovctl
-
-irqcheck: outdir
-	$(BUILDFLAGS) go build -v -o _output/irqcheck ./cmd/irqcheck
-
-pagrep: outdir
-	$(BUILDFLAGS) go build -v -o _output/pagrep ./cmd/pagrep
+binaries: outdir
+	# go flags are set in here
+	./hack/build-binaries.sh
 
 clean:
 	rm -rf _output
