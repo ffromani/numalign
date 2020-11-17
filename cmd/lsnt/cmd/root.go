@@ -48,6 +48,7 @@ func NewRootCommand() *cobra.Command {
 	root.AddCommand(
 		newCPUCommand(),
 		newNUMACommand(),
+		newNUMADistCommand(),
 		newPCIDevsCommand(),
 		newDaemonWaitCommand(),
 	)
