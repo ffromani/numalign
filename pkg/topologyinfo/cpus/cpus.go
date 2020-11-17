@@ -17,22 +17,9 @@
 package cpus
 
 import (
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"strconv"
-	"strings"
 
-	"github.com/fromanirh/cpuset"
-)
-
-/*
- * keep this handy:
- * https://www.kernel.org/doc/html/latest/admin-guide/cputopology.html
- */
-const (
-	PathDevsSysCPU  = "devices/system/cpu"
-	PathDevsSysNode = "devices/system/node"
+	"github.com/fromanirh/numalign/pkg/topologyinfo/sysfs"
 )
 
 // CPUIdList is a list of CPU IDs (integer core identifier)
@@ -50,19 +37,20 @@ type CPUs struct {
 }
 
 // NewCPUs extracts the CPU information from a given sysfs-like path
-func NewCPUs(sysfs string) (*CPUs, error) {
-	sysfsCPUPath := filepath.Join(sysfs, PathDevsSysCPU)
-	present, err := readCPUList(filepath.Join(sysfsCPUPath, "present"))
+func NewCPUs(sysfsPath string) (*CPUs, error) {
+	sys := sysfs.New(sysfsPath)
+	sysCpu := sys.Join(sysfs.PathDevsSysCPU)
+
+	present, err := sysCpu.ReadList("present")
 	if err != nil {
 		return nil, err
 	}
-	online, err := readCPUList(filepath.Join(sysfsCPUPath, "online"))
+	online, err := sysCpu.ReadList("online")
 	if err != nil {
 		return nil, err
 	}
 
-	sysfsNodePath := filepath.Join(sysfs, PathDevsSysNode)
-	nodes, err := readCPUList(filepath.Join(sysfsNodePath, "online"))
+	nodes, err := sys.Join(sysfs.PathDevsSysNode).ReadList("online")
 	if err != nil {
 		return nil, err
 	}
@@ -72,16 +60,17 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 	coreCPUs := make(map[int]CPUIdList)
 	packageCPUs := make(map[int]CPUIdList)
 	for _, cpuID := range online {
-		sysfsCPUIdPath := pathSysCPUxTopology(sysfsCPUPath, cpuID)
-		cpuThreads, err := readCPUList(filepath.Join(sysfsCPUIdPath, "thread_siblings_list"))
+		sysCpuIDTopo := sys.ForCPU(cpuID).Join("topology")
+
+		cpuThreads, err := sysCpuIDTopo.ReadList("thread_siblings_list")
 		if err != nil {
 			return nil, err
 		}
-		cpuCores, err := readCPUList(filepath.Join(sysfsCPUIdPath, "core_siblings_list"))
+		cpuCores, err := sysCpuIDTopo.ReadList("core_siblings_list")
 		if err != nil {
 			return nil, err
 		}
-		physPackageID, err := readSysFSFile(filepath.Join(sysfsCPUIdPath, "physical_package_id"))
+		physPackageID, err := sysCpuIDTopo.ReadFile("physical_package_id")
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +91,7 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 
 	numaNodeCPUs := make(map[int]CPUIdList)
 	for _, node := range nodes {
-		cpus, err := readCPUList(filepath.Join(pathSysNodex(sysfsNodePath, node), "cpulist"))
+		cpus, err := sys.ForNode(node).ReadList("cpulist")
 		if err != nil {
 			return nil, err
 		}
@@ -118,32 +107,4 @@ func NewCPUs(sysfs string) (*CPUs, error) {
 		NUMANodes:    nodes,
 		NUMANodeCPUs: numaNodeCPUs,
 	}, nil
-}
-
-func readSysFSFile(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
-func readCPUList(path string) (CPUIdList, error) {
-	data, err := readSysFSFile(path)
-	if err != nil {
-		return nil, err
-	}
-	cpus, err := cpuset.Parse(data)
-	if err != nil {
-		return nil, err
-	}
-	return CPUIdList(cpus), nil
-}
-
-func pathSysCPUxTopology(sysfsCPUPath string, cpuID int) string {
-	return filepath.Join(sysfsCPUPath, fmt.Sprintf("cpu%d", cpuID), "topology")
-}
-
-func pathSysNodex(sysfsNodePath string, nodeID int) string {
-	return filepath.Join(sysfsNodePath, fmt.Sprintf("node%d", nodeID))
 }
