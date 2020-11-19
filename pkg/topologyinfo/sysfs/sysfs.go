@@ -35,23 +35,23 @@ const (
 )
 
 type Path struct {
-	base string
+	path string
 }
 
-func New(base string) Path {
+func New(path string) Path {
 	return Path{
-		base: base,
+		path: path,
 	}
 }
 
-func (p Path) Join(extra string) Path {
+func (p Path) Join(extra ...string) Path {
 	return Path{
-		base: filepath.Join(p.base, extra),
+		path: filepath.Join(p.path, filepath.Join(extra...)),
 	}
 }
 
 func (p Path) ReadFile(name string) (string, error) {
-	data, err := ioutil.ReadFile(filepath.Join(p.base, name))
+	data, err := ioutil.ReadFile(filepath.Join(p.path, name))
 	if err != nil {
 		return "", err
 	}
@@ -67,13 +67,9 @@ func (p Path) ReadList(name string) ([]int, error) {
 }
 
 func (p Path) ForNode(nodeID int) Path {
-	return Path{
-		base: filepath.Join(p.base, PathDevsSysNode, fmt.Sprintf("node%d", nodeID)),
-	}
+	return p.Join(PathDevsSysNode, fmt.Sprintf("node%d", nodeID))
 }
 
 func (p Path) ForCPU(cpuID int) Path {
-	return Path{
-		base: filepath.Join(p.base, PathDevsSysCPU, fmt.Sprintf("cpu%d", cpuID)),
-	}
+	return p.Join(PathDevsSysCPU, fmt.Sprintf("cpu%d", cpuID))
 }
