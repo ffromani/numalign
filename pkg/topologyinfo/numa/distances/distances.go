@@ -35,7 +35,7 @@ type nodeDistances struct {
 
 func nodeDistancesFromString(numaNodes int, data string) (nodeDistances, error) {
 	ret := nodeDistances{}
-	dists := strings.Split(data, distanceSeparator)
+	dists := strings.Split(strings.TrimSpace(data), distanceSeparator)
 	if len(dists) != numaNodes {
 		return ret, fmt.Errorf("found %d distance values, expected %d", len(dists), numaNodes)
 	}
@@ -65,22 +65,44 @@ func (d *Distances) BetweenNodes(from, to int) (int, error) {
 	return d.byNode[from].values[to], nil
 }
 
+// NewDistancesFromData takes a map in the format "0": "10 21 30\n"
+func NewDistancesFromData(data map[string]string) (*Distances, error) {
+	dist := NewDistancesEmpty()
+
+	numNodes := len(data)
+	for nodeData, distData := range data {
+		nodeID, err := strconv.Atoi(nodeData)
+		if err != nil {
+			return dist, err
+		}
+		dist.onlineNodes[nodeID] = true
+		nodeDist, err := nodeDistancesFromString(numNodes, distData)
+		if err != nil {
+			return dist, err
+		}
+		dist.byNode = append(dist.byNode, nodeDist)
+	}
+	return dist, nil
+}
+
 func NewDistancesFromSysfs(sysfsPath string) (*Distances, error) {
 	nodes, err := numa.NewNodesFromSysFS(sysfsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	dist := Distances{
-		onlineNodes: make(map[int]bool),
-	}
+	dist := NewDistancesEmpty()
 
 	sys := sysfs.New(sysfsPath)
 	for _, nodeID := range nodes.Online {
+		// here we are iterating over src nodes: reading the distances to other nodes
+		// from each of the online nodes. But if we know how to reach all other nodes
+		// from node X, then we know node X is online, so is safe to assume node X will
+		// be included in the distances vectors of other nodes.
+		// TL;DR: no need to explicitely iterate over destination nodes.
 		dist.onlineNodes[nodeID] = true
 
-		sysNode := sys.ForNode(nodeID)
-		distData, err := sysNode.ReadFile("distance")
+		distData, err := sys.ForNode(nodeID).ReadFile("distance")
 		if err != nil {
 			return nil, err
 		}
@@ -93,5 +115,12 @@ func NewDistancesFromSysfs(sysfsPath string) (*Distances, error) {
 		dist.byNode = append(dist.byNode, nodeDist)
 	}
 
-	return &dist, nil
+	return dist, nil
+}
+
+func NewDistancesEmpty() *Distances {
+	dist := Distances{
+		onlineNodes: make(map[int]bool),
+	}
+	return &dist
 }

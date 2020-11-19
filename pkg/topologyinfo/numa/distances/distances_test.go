@@ -27,11 +27,12 @@ type distTcase struct {
 }
 
 func TestDistancesBetweenNodes(t *testing.T) {
-	var err error
-
-	dists := newFakeDistances(map[int]string{
-		0: "10",
+	dists, err := NewDistancesFromData(map[string]string{
+		"0": "10\n",
 	})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 
 	val, err := dists.BetweenNodes(0, 0)
 	if err != nil {
@@ -57,17 +58,4 @@ func TestDistancesBetweenNodes(t *testing.T) {
 		})
 	}
 
-}
-
-func newFakeDistances(data map[int]string) *Distances {
-	dist := Distances{
-		onlineNodes: make(map[int]bool),
-	}
-	nodeNum := len(data)
-	for nodeID, distData := range data {
-		dist.onlineNodes[nodeID] = true
-		nodeDist, _ := nodeDistancesFromString(nodeNum, distData)
-		dist.byNode = append(dist.byNode, nodeDist)
-	}
-	return &dist
 }
