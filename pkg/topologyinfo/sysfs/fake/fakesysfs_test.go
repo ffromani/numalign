@@ -1,4 +1,4 @@
-package fakesysfs
+package fake
 
 import (
 	"io/ioutil"

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/fromanirh/cpuset"
-	"github.com/fromanirh/numalign/pkg/fakesysfs"
+	fakesysfs "github.com/fromanirh/numalign/pkg/topologyinfo/sysfs/fake"
 	"github.com/google/go-cmp/cmp"
 )
 
