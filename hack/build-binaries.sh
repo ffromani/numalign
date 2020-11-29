@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -e
 set -o pipefail
 
 HACKDIR=$( dirname $( readlink -f "${BASH_SOURCE[0]}" ) )
