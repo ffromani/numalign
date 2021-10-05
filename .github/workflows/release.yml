@@ -56,18 +56,6 @@ jobs:
         name: build-artifacts
         path: _output/*
 
-    - name: export kind logs
-      if: ${{ failure() }}
-      run: |
-        kind export logs /tmp/kind-logs
-
-    - name: archive kind logs
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@v2
-      with:
-        name: kind-logs
-        path: /tmp/kind-logs
-
   release:
     needs: [release-build]
     runs-on: ubuntu-20.04
