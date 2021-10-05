@@ -38,11 +38,11 @@ jobs:
 
     - name: fix build artifacts
       run: |
-        for tool in irqcheck  lsnt  numalign  pagrep  splitcpulist  sriovctl  sriovscan; do
+        for tool in cpusetinfo irqcheck  lsnt  numalign  pagrep  splitcpulist  sriovctl  sriovscan; do
           mv _output/$tool $tool-${{ env.RELEASE_VERSION }}-linux-amd64
         done
         make clean outdir
-        for tool in irqcheck  lsnt  numalign  pagrep  splitcpulist  sriovctl  sriovscan; do
+        for tool in cpusetinfo irqcheck  lsnt  numalign  pagrep  splitcpulist  sriovctl  sriovscan; do
           mv $tool-${{ env.RELEASE_VERSION}}-linux-amd64 _output/
         done
 
