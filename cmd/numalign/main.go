@@ -35,6 +35,7 @@ func main() {
 	var sleepHoursParam = flag.StringP("sleep-hours", "S", "", "sleep hours once done.")
 	var scriptPathParam = flag.StringP("script-path", "P", "", "save test script to this path.")
 	var jsonOutput = flag.BoolP("json", "J", false, "output in JSON")
+	var sleepOnError = flag.BoolP("sleep-on-error", "E", false, "still sleep if failed before to exit")
 	flag.Parse()
 
 	if _, ok := os.LookupEnv("NUMALIGN_DEBUG"); !ok {
@@ -89,6 +90,8 @@ func main() {
 		}
 	}
 
-	time.Sleep(sleepTime)
+	if rc == 0 || *sleepOnError {
+		time.Sleep(sleepTime)
+	}
 	os.Exit(rc)
 }
