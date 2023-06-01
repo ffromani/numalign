@@ -21,8 +21,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/fromanirh/numalign/internal/pkg/numalign"
-	"github.com/fromanirh/numalign/internal/pkg/sriovscan"
+	"github.com/ffromani/numalign/internal/pkg/numalign"
+	"github.com/ffromani/numalign/internal/pkg/sriovscan"
 )
 
 func main() {

@@ -17,7 +17,7 @@
 package numa
 
 import (
-	"github.com/fromanirh/numalign/pkg/topologyinfo/sysfs"
+	"github.com/ffromani/numalign/pkg/topologyinfo/sysfs"
 )
 
 type Nodes struct {

@@ -22,7 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
+	"github.com/ffromani/numalign/pkg/topologyinfo/cpus"
 )
 
 func showCPU(cmd *cobra.Command, args []string) error {

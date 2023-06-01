@@ -22,7 +22,7 @@ import (
 	"github.com/disiqueira/gotree"
 	"github.com/spf13/cobra"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
+	"github.com/ffromani/numalign/pkg/topologyinfo/pcidev"
 )
 
 type pcidevOpts struct {

@@ -24,8 +24,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/numa"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/numa/distances"
+	"github.com/ffromani/numalign/pkg/topologyinfo/numa"
+	"github.com/ffromani/numalign/pkg/topologyinfo/numa/distances"
 )
 
 func nodeIDs(nodeIDs []int) []string {

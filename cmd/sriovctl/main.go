@@ -23,7 +23,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
+	"github.com/ffromani/numalign/pkg/topologyinfo/pcidev"
 )
 
 type sriovInfo struct {

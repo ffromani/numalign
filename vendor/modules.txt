@@ -1,9 +1,9 @@
 # github.com/disiqueira/gotree v1.0.0
 ## explicit
 github.com/disiqueira/gotree
-# github.com/fromanirh/cpuset v0.0.0-20200530094055-76ce61745438
+# github.com/ffromani/cpuset v0.0.0-20200530094055-76ce61745438
 ## explicit
-github.com/fromanirh/cpuset
+github.com/ffromani/cpuset
 # github.com/go-logr/logr v0.4.0
 github.com/go-logr/logr
 # github.com/google/go-cmp v0.5.5

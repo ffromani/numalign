@@ -7,7 +7,7 @@ import (
 
 	"testing"
 
-	fakesysfs "github.com/fromanirh/numalign/pkg/topologyinfo/sysfs/fake"
+	fakesysfs "github.com/ffromani/numalign/pkg/topologyinfo/sysfs/fake"
 )
 
 func TestPCIDevsTrivialTree(t *testing.T) {

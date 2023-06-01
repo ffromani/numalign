@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/numa"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/sysfs"
+	"github.com/ffromani/numalign/pkg/topologyinfo/numa"
+	"github.com/ffromani/numalign/pkg/topologyinfo/sysfs"
 )
 
 const (

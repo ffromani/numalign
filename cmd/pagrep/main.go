@@ -23,7 +23,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/fromanirh/numalign/pkg/procs"
+	"github.com/ffromani/numalign/pkg/procs"
 	k8scpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 

@@ -24,7 +24,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/fromanirh/numalign/pkg/cpusetinfo"
+	"github.com/ffromani/numalign/pkg/cpusetinfo"
 )
 
 type result struct {

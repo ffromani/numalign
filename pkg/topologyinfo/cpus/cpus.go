@@ -19,7 +19,7 @@ package cpus
 import (
 	"strconv"
 
-	"github.com/fromanirh/numalign/pkg/topologyinfo/sysfs"
+	"github.com/ffromani/numalign/pkg/topologyinfo/sysfs"
 )
 
 // CPUIdList is a list of CPU IDs (integer core identifier)

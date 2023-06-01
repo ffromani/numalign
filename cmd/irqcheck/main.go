@@ -27,10 +27,10 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/fromanirh/cpuset"
+	"github.com/ffromani/cpuset"
 	k8scpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
-	"github.com/fromanirh/numalign/pkg/softirqs"
+	"github.com/ffromani/numalign/pkg/softirqs"
 )
 
 func main() {

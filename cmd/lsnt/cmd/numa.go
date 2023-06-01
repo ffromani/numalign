@@ -22,8 +22,8 @@ import (
 	"github.com/disiqueira/gotree"
 	"github.com/spf13/cobra"
 
-	"github.com/fromanirh/cpuset"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
+	"github.com/ffromani/cpuset"
+	"github.com/ffromani/numalign/pkg/topologyinfo/cpus"
 )
 
 func showNUMA(cmd *cobra.Command, args []string) error {

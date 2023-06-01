@@ -21,7 +21,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/fromanirh/cpuset"
+	"github.com/ffromani/cpuset"
 )
 
 func summarizeCPUIdList(data map[int]CPUIdList) string {

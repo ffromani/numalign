@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fromanirh/numalign/cmd/lsnt/cmd"
+	"github.com/ffromani/numalign/cmd/lsnt/cmd"
 )
 
 func expectNoError(err error) {

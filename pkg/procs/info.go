@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fromanirh/cpuset"
+	"github.com/ffromani/cpuset"
 )
 
 type Info struct {

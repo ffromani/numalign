@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"testing"
 
-	fakesysfs "github.com/fromanirh/numalign/pkg/topologyinfo/sysfs/fake"
+	fakesysfs "github.com/ffromani/numalign/pkg/topologyinfo/sysfs/fake"
 )
 
 func TestReadNUMAINfo(t *testing.T) {

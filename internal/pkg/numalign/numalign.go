@@ -28,9 +28,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fromanirh/cpuset"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/cpus"
-	"github.com/fromanirh/numalign/pkg/topologyinfo/pcidev"
+	"github.com/ffromani/cpuset"
+	"github.com/ffromani/numalign/pkg/topologyinfo/cpus"
+	"github.com/ffromani/numalign/pkg/topologyinfo/pcidev"
 )
 
 const (

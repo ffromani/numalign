@@ -24,8 +24,8 @@ import (
 
 	"testing"
 
-	"github.com/fromanirh/cpuset"
-	fakesysfs "github.com/fromanirh/numalign/pkg/topologyinfo/sysfs/fake"
+	"github.com/ffromani/cpuset"
+	fakesysfs "github.com/ffromani/numalign/pkg/topologyinfo/sysfs/fake"
 	"github.com/google/go-cmp/cmp"
 )
 

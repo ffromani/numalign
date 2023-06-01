@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fromanirh/cpuset"
+	"github.com/ffromani/cpuset"
 )
 
 /*

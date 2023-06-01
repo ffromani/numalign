@@ -26,7 +26,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/fromanirh/numalign/internal/pkg/numalign"
+	"github.com/ffromani/numalign/internal/pkg/numalign"
 )
 
 func main() {
