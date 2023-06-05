@@ -183,6 +183,10 @@ func GetPCIDevicesFromEnv(environ []string) []string {
 		if !strings.HasPrefix(envVar, "PCIDEVICE_") {
 			continue
 		}
+		if strings.Contains(envVar, "_INFO=") {
+			// sriov device plugin found in OpenShift >= 4.13 (TODO: narro down version)
+			continue
+		}
 		pair := strings.SplitN(envVar, "=", 2)
 		pciDevs = append(pciDevs, pair[1])
 	}
