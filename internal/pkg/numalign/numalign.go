@@ -188,7 +188,9 @@ func GetPCIDevicesFromEnv(environ []string) []string {
 			continue
 		}
 		pair := strings.SplitN(envVar, "=", 2)
-		pciDevs = append(pciDevs, pair[1])
+		for _, pciDev := range strings.Split(pair[1], ",") {
+			pciDevs = append(pciDevs, pciDev)
+		}
 	}
 	return pciDevs
 }
