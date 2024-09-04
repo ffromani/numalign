@@ -1,5 +1,12 @@
 # numalign - tooling to check NUMA resource alignment/positioning
 
+## DEPRECATION NOTICE
+
+This package is declared obsolete and unmaintained.
+[ctrreschk](https://github.com/ffromani/ctrreschk) is a more modern, featureful and actively development replacement.
+
+## content
+
 `irqcheck` tells information about IRQ/softirq cpus affinity.
 
 `lsnt` reports information about NUMA locality of CPU and devices.
